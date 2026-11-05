@@ -248,16 +248,171 @@
 
 ---
 
+---
+
+## Fase B y Fase C · Desarrollo y verificación por incremento (Ciclo ejecutado para Incrementos 2 a 5)
+
+### B1–C5. Incremento 2 · `v0.2.0` (`M01`, `M02`, `M03`, `M04` + integración `M07`)
+
+- **Rama de trabajo:** `incremento-2` (creada desde `main` y publicada con `git push -u origin incremento-2`).
+- **Fusión a `main`:** Commit `25024ce` (`Merge branch 'incremento-2' into main --no-ff`) · **Tag:** `v0.2.0`.
+
+#### 1. Desglose de tareas y commits atómicos (Pasos B1 y B3)
+
+| Tarea | RF cubiertos | Archivo(s) creados o modificados | Qué hace | Prueba que la verifica | Commit en `incremento-2` |
+|---|---|---|---|---|---|
+| **Tarea 2.1:** Autenticación RBAC, bloqueo al 5to intento, sesión de 20 min y bloqueo de precios al técnico | `RF-01`, `RF-02`, `RF-04`, `RF-05`, `RF-06`, `RF-07` | `src/Services/AuthRbacService.php`, `tests/Unit/AuthRbacServiceTest.php`, `tests/run_tests.php` | Gestiona usuarios, valida credenciales y roles (`Administrador` / `Tecnico`), bloquea 15 min al 5to intento fallido, controla aviso al min 19 y expiración al min 20, y bloquea/audita cualquier acceso del técnico a rutas o datos de precios. | `AuthRbacServiceTest` (7 pruebas: Normal, Límite, Error) | `f0f89e3` (`feat(RF-01): implementar autenticacion RBAC, bloqueo de precios al tecnico y sesion (M01)`) |
+| **Tarea 2.2:** Directorio de clientes, búsqueda, duplicados y baja lógica conservando historial | `RF-08`, `RF-09`, `RF-10`, `RF-11`, `RF-12` | `src/Services/ClienteService.php`, `tests/Unit/ClienteServiceTest.php` | Registra, edita y busca clientes por nombre, RFC o contacto; previene RFC/razón social duplicados y ejecuta baja lógica conservando cotizaciones y activos históricos. | `ClienteServiceTest` (6 pruebas: Normal, Límite, Error) | `ebb489e` (`feat(RF-08): implementar directorio de clientes, historial, duplicados y baja logica (M02)`) |
+| **Tarea 2.3:** Registro y edición de activos vinculados a cliente con validación de rangos técnicos | `RF-13`, `RF-14` | `src/Services/ActivoService.php`, `tests/Unit/ActivoServiceTest.php` | Registra y actualiza elevadores vinculados a un cliente existente validando paradas (`2..60`) y capacidad (`100..10,000 kg`). | `ActivoServiceTest` (5 pruebas en Inc. 2: Normal, Límite, Error) | `1d434e9` (`feat(RF-13): implementar registro de activos y validacion de rangos tecnicos (M03)`) |
+| **Tarea 2.4:** Catálogo de tarifas con vigencias, importación CSV e integración con `M07` | `RF-16`, `RF-17`, `RF-18`, `RF-19` | `src/Services/CatalogoTarifaService.php`, `tests/Unit/CatalogoTarifaServiceTest.php` | Administra conceptos y precios unitarios con fecha de vigencia, importa lotes CSV validando columnas y montos positivos, y provee partidas vigentes al motor `CalculoMotorService` (`M07`). | `CatalogoTarifaServiceTest` (8 pruebas: Normal, Límite, Error + integración `M07`) | `f684034` (`feat(RF-16): implementar catalogo de tarifas vigentes, importador CSV e integracion M07 (M04)`) |
+
+#### 2. Tabla de resultados de pruebas y regresión del Incremento 2 (Pasos C1, C2 y C3)
+
+| ID de prueba | RF / CA que verifica | Tipo | Entrada | Resultado esperado | Resultado obtenido | Pasa (Sí/No) |
+|---|---|---|---|---|---|:---:|
+| `P-INC2-01` | `RF-01`, `RF-05`, `RF-06` / `CA-01.1`, `CA-03.1` | Normal | Login de `Administrador` y `Tecnico`; solicitud de menú y saneamiento de payload para `Tecnico` | Menú comercial completo para Admin; menú sin catálogo y payload sin campos `precio_*`/`subtotal`/`iva`/`total` para Técnico | Menú filtrado por rol y claves monetarias eliminadas al 100 % para el rol `Tecnico` | Sí |
+| `P-INC2-02` | `RF-02`, `RF-07` / `CA-01.3`, `CA-05.1`, `CA-05.2` | Límite | 5 intentos fallidos consecutivos de login; sesión en minuto 19 y en minuto 20 de inactividad | Cuenta bloqueada exactamente 15 min al 5to intento; aviso en min 19 (`restantes=1`) y expiración en min 20 | `bloqueado=true` por 15 min al 5to intento; `aviso_expiracion=true` al min 19 y `activa=false` al min 20 | Sí |
+| `P-INC2-03` | `RF-04`, `RF-06` / `CA-03.2`, `CA-04.2` | Error | `Tecnico` accede por URL directa a `/catalogo-tarifas`; alta de usuario con correo duplicado | Acceso denegado + evento registrado en bitácora de auditoría; excepción de correo duplicado | `acceso_permitido=false` con registro en bitácora; excepción lanzada en correo duplicado | Sí |
+| `P-INC2-04` | `RF-08..RF-12` / `CA-06.1..CA-07.4` | Normal / Límite / Error | Alta de cliente, razón social de 300 chars, baja lógica con cotización histórica y RFC duplicado | Cliente creado y buscable; 300 chars aceptados; baja lógica conserva historial; RFC vacío/duplicado rechazado | Cliente activo, baja lógica con historial intacto y excepciones en RFC vacío o duplicado | Sí |
+| `P-INC2-05` | `RF-13`, `RF-14` / `CA-08.1..CA-08.4` | Normal / Límite / Error | Alta de activo con 8 paradas; límite inferior exacto de 2 paradas; activo sin cliente o con 1 parada / 80 kg | Registro exitoso con 8 y 2 paradas; rechazo cuando el cliente no existe o paradas `< 2` / capacidad `< 100` | Activos válidos creados y excepciones controladas en cliente inexistente o rango inválido | Sí |
+| `P-INC2-06` | `RF-16..RF-19` / `CA-10.1..CA-11.3` | Normal / Límite / Error | Alta de tarifa vigente e integración con `M07`; tarifa futura (`2099-01-01`); CSV válido, CSV solo cabeceras y CSV sin columna `precio` | `M07` calcula subtotal $3,200 + IVA $512 = $3,712 con tarifa vigente; tarifa futura no aplica hoy; CSV sin `precio` o monto `<= 0` es rechazado | Cálculo integrado exacto con `M07`, vigencia futura aislada y validación CSV estricta | Sí |
+| `REG-INC2` | Regresión `v0.1.0` + `v0.2.0` (`php tests/run_tests.php`) | Regresión | Ejecución completa de `CalculoMotorServiceTest` + suites `M01`–`M04` | **30 / 30 pruebas aprobadas** (0 fallos en Incremento 1 e Incremento 2) | **30 / 30 pruebas aprobadas (100 %)** | Sí |
+
+---
+
+### B1–C5. Incremento 3 · `v0.3.0` (`M05`, `M06` y extensión completa de `M07`)
+
+- **Rama de trabajo:** `incremento-3` (creada desde `main` en `v0.2.0` y publicada en `origin`).
+- **Fusión a `main`:** Commit `f83737f` (`Merge branch 'incremento-3' into main --no-ff`) · **Tag:** `v0.3.0`.
+
+#### 1. Desglose de tareas y commits atómicos (Pasos B1 y B3)
+
+| Tarea | RF cubiertos | Archivo(s) creados o modificados | Qué hace | Prueba que la verifica | Commit en `incremento-3` |
+|---|---|---|---|---|---|
+| **Tarea 3.1:** Levantamiento de solicitudes técnicas en sitio, consulta sin precios y bandeja comercial paginada | `RF-20`, `RF-21`, `RF-22`, `RF-23`, `RF-24` | `src/Services/SolicitudService.php`, `tests/Unit/SolicitudServiceTest.php`, `tests/run_tests.php` | Permite al técnico registrar solicitudes con activo y refacciones sugeridas, detectar duplicados recientes (`CA-12.3`), consultar solo sus propias solicitudes sin montos y listar la bandeja comercial paginada en bloques de 50. | `SolicitudServiceTest` (9 pruebas: Normal, Límite, Error) | `a67f493` (`feat(RF-20): implementar solicitudes de campo del tecnico, bandeja comercial y control de duplicados (M05)`) |
+| **Tarea 3.2:** Extensión del motor `M07` para equipos nuevos/modernización, pólizas preventivas, correctivos y descuentos | `RF-27`, `RF-28`, `RF-29`, `RF-30` | `src/Services/CalculoMotorService.php`, `tests/Unit/CalculoMotorServiceTest.php` | Extiende `CalculoMotorService` con cálculo por capacidad/paradas/acabados (`RF-27`), póliza preventiva por periodicidad y visitas anuales (`RF-29`), correctivo con refacciones + mano de obra fraccionaria (`RF-30`) y descuentos controlados (`CA-16.2`, `CA-16.3`). | `CalculoMotorServiceTest` (10 pruebas: 4 de Inc. 1 + 6 nuevas) | `932e213` (`feat(RF-27): extender motor M07 con calculo de equipos, polizas preventivas, correctivos y descuentos`) |
+| **Tarea 3.3:** Cotizador comercial, conversión de solicitud a cotización, borradores y ciclo de estados | `RF-25`, `RF-26`, `RF-31`, `RF-32`, `RF-33` | `src/Services/CotizadorService.php`, `tests/Unit/CotizadorServiceTest.php` | Convierte solicitudes pendientes en cotizaciones precargando cliente/activo, valida que el activo pertenezca al cliente (`CA-15.2`), recalcula al editar partidas, guarda borradores y gestiona estados (`Borrador`, `Enviada`, `Aceptada`, `Rechazada`, `Vencida` a 15 días). | `CotizadorServiceTest` (8 pruebas en Inc. 3: Normal, Límite, Error) | `03c0b9b` (`feat(RF-25): implementar cotizador comercial, conversion de solicitudes, borradores y estados (M06)`) |
+
+#### 2. Tabla de resultados de pruebas y regresión del Incremento 3 (Pasos C1, C2 y C3)
+
+| ID de prueba | RF / CA que verifica | Tipo | Entrada | Resultado esperado | Resultado obtenido | Pasa (Sí/No) |
+|---|---|---|---|---|---|:---:|
+| `P-INC3-01` | `RF-20..RF-24` / `CA-12.1..CA-14.5` | Normal / Límite / Error | Alta de solicitud por técnico; duplicada confirmada con motivo; paginación de 200 solicitudes (50 por página); técnico intenta ver solicitud ajena; solicitud ya cotizada | Folio `SOL-0001` en `Pendiente de cotizar` sin campos de precio; página 1 devuelve 50 de 200; rechazo en solicitud ajena o ya cotizada | Solicitud creada sin montos, paginación exacta `50/200` y bloqueo de acceso ajeno o doble atención | Sí |
+| `P-INC3-02` | `RF-27`, `RF-29`, `RF-30` / `CA-15.1..CA-18.3` | Normal / Límite / Error | Equipo nuevo `630kg_8p` Acero Inoxidable; descuento 100 % confirmado vs descuento mayor al subtotal; póliza bimestral (6 visitas) vs 0 visitas; correctivo con `0.5 h` de mano de obra vs diagnóstico vacío | Subtotal $710,000 + IVA $113,600 = $823,600; total $0.00 con 100 % descuento; póliza $15,000 + IVA $2,400 = $17,400; `0.5 h` a $700 = $350; error en descuento `> subtotal`, `0` visitas o sin diagnóstico | Todos los cálculos a 2 decimales y validaciones de negocio coinciden con los criterios de la Sección 8 | Sí |
+| `P-INC3-03` | `RF-25`, `RF-26`, `RF-31..RF-33` / `CA-14.2`, `CA-15.2`, `CA-19.1..CA-19.3` | Normal / Límite / Error | Conversión de solicitud a cotización; edición de partida de 1 a 2 unidades; vencimiento tras 16 días (`> 15` días); activo de otro cliente; envío de borrador sin partidas | Solicitud pasa a `Cotizada`; recálculo inmediato; cambio automático a `Vencida`; excepción si el activo no pertenece al cliente o el borrador está incompleto | Flujo extremo a extremo Técnico -> Solicitud -> Cotización verificado sin errores | Sí |
+| `REG-INC3` | Regresión `v0.1.0` + `v0.2.0` + `v0.3.0` (`php tests/run_tests.php`) | Regresión | Ejecución acumulada de todas las suites de Incrementos 1, 2 y 3 | **53 / 53 pruebas aprobadas** | **53 / 53 pruebas aprobadas (100 %)** | Sí |
+
+---
+
+### B1–C5. Incremento 4 · `v0.4.0` (`M08 Propuesta PDF y seguimiento` + `M09 Reportes, auditoría y errores`)
+
+- **Rama de trabajo:** `incremento-4` (creada desde `main` en `v0.3.0` y publicada en `origin`).
+- **Fusión a `main`:** Commit `1901ee5` (`Merge branch 'incremento-4' into main --no-ff`) · **Tag:** `v0.4.0`.
+
+#### 1. Desglose de tareas y commits atómicos (Pasos B1 y B3)
+
+| Tarea | RF cubiertos | Archivo(s) creados o modificados | Qué hace | Prueba que la verifica | Commit en `incremento-4` |
+|---|---|---|---|---|---|
+| **Tarea 4.1:** Emisión de propuesta económica PDF, folios consecutivos anuales `COT-AAAA-NNNN`, envío por correo y aceptación/rechazo | `RF-35`, `RF-36`, `RF-37`, `RF-38` | `src/Services/PropuestaSeguimientoService.php`, `tests/Unit/PropuestaSeguimientoServiceTest.php`, `tests/run_tests.php` | Asigna folio anual consecutivo sin repetir (`CA-21.2`), genera la estructura completa de propuesta PDF con desglose fiscal y vigencia, registra envíos múltiples por correo (`CA-22.3`) y registra aceptación o rechazo con motivo. | `PropuestaSeguimientoServiceTest` (5 pruebas: Normal, Límite, Error) | `a7c7266` (`feat(RF-35): implementar emision de propuesta PDF, folios consecutivos y seguimiento comercial (M08)`) |
+| **Tarea 4.2:** Tablero directivo de indicadores comerciales y exportación de reportes CSV con filtros | `RF-39`, `RF-40` | `src/Services/ReporteTableroService.php`, `tests/Unit/ReporteTableroServiceTest.php` | Calcula totales por estado, montos acumulados y porcentaje de conversión filtrados por periodo, cliente, estado o tipo de servicio, y exporta el detalle a CSV. | `ReporteTableroServiceTest` (4 pruebas: Normal, Límite, Error) | `18b483f` (`feat(RF-39): implementar tablero de indicadores comerciales y exportacion de reportes CSV (M09)`) |
+| **Tarea 4.3:** Bitácora inmutable de auditoría paginada y manejador centralizado de errores en español | `RF-41`, `RF-42`, `RF-43` | `src/Services/AuditoriaErrorService.php`, `tests/Unit/AuditoriaErrorServiceTest.php` | Registra eventos críticos en bitácora de solo lectura (bloqueando edición/borrado), pagina de 50 en 50, traduce fallas técnicas a mensajes claros en español sin stack traces (`CA-24.2`) y rechaza operaciones sobre registros cancelados o solicitudes ya cotizadas (`RF-43`). | `AuditoriaErrorServiceTest` (6 pruebas: Normal, Límite, Error) | `7115a4a` (`feat(RF-41): implementar bitacora inmutable de auditoria y manejador centralizado de errores (M09)`) |
+
+#### 2. Tabla de resultados de pruebas y regresión del Incremento 4 (Pasos C1, C2 y C3)
+
+| ID de prueba | RF / CA que verifica | Tipo | Entrada | Resultado esperado | Resultado obtenido | Pasa (Sí/No) |
+|---|---|---|---|---|---|:---:|
+| `P-INC4-01` | `RF-35..RF-38` / `CA-21.1..CA-22.4` | Normal / Límite / Error | Emisión de PDF tras 12 folios previos; doble envío por correo; registro de aceptación/rechazo; falla simulada del motor PDF y cliente sin correo | Folio `COT-2026-0013` asignado; 2 registros de envío conservados; error amigable en español si falla el PDF o falta correo | Folio `COT-2026-0013`, historial de 2 envíos y manejo controlado de errores | Sí |
+| `P-INC4-02` | `RF-39`, `RF-40` / `CA-23.1..CA-23.4` | Normal / Límite / Error | Consulta de tablero con cotizaciones enviadas/aceptadas; exportación CSV; periodo sin movimientos; rango de fechas invertido (`fin < inicio`) | Indicadores y CSV coherentes; tablero en `0` sin error en periodo vacío; excepción de validación en fechas invertidas | Indicadores exactos, CSV con encabezados y validación de fechas correcta | Sí |
+| `P-INC4-03` | `RF-41..RF-43` / `CA-24.1..CA-24.3`, `CA-14.5` | Normal / Límite / Error | Consulta cronológica y paginada (120 eventos -> 50 en pág. 1); intento de eliminar/editar bitácora; error técnico `PDOException`; operación sobre cotización cancelada | Bitácora paginada (`50/120`), inmutable ante edición/borrado, mensaje en español sin trazas SQL y rechazo de operación inválida | Bitácora 100 % inmutable, mensajes limpios en español y bloqueo `RF-43` activo | Sí |
+| `REG-INC4` | Regresión `v0.1.0` a `v0.4.0` (`php tests/run_tests.php`) | Regresión | Ejecución acumulada de todas las suites de Incrementos 1, 2, 3 y 4 | **68 / 68 pruebas aprobadas** | **68 / 68 pruebas aprobadas (100 %)** | Sí |
+
+---
+
+### B1–C5. Incremento 5 · `v0.5.0` (Requerimientos de prioridad Baja: `RF-03`, `RF-15`, `RF-34`)
+
+- **Rama de trabajo:** `incremento-5` (creada desde `main` en `v0.4.0` y publicada en `origin`).
+- **Fusión a `main`:** Commit `5b604f2` (`Merge branch 'incremento-5' into main --no-ff`) · **Tag:** `v0.5.0`.
+
+#### 1. Desglose de tareas y commits atómicos (Pasos B1 y B3)
+
+| Tarea | RF cubiertos | Archivo(s) creados o modificados | Qué hace | Prueba que la verifica | Commit en `incremento-5` |
+|---|---|---|---|---|---|
+| **Tarea 5.1:** Recuperación de contraseña por correo con enlace temporal válido por 30 minutos | `RF-03` | `src/Services/AuthRbacService.php`, `tests/Unit/AuthRbacServiceTest.php` | Genera token temporal con vigencia de 30 minutos, actualiza la contraseña si el token es vigente, rechaza tokens expirados (`> 30 min`, `CA-02.2`) y devuelve mensaje genérico seguro en correos no registrados (`CA-02.3`). | `AuthRbacServiceTest` (+3 pruebas `CA-02.1..CA-02.3`, total 10) | `e714ed2` (`feat(RF-03): implementar recuperacion de contrasena con token temporal de 30 minutos (M01)`) |
+| **Tarea 5.2:** Historial de solicitudes y cotizaciones de un activo ordenado por fecha y filtrado por rol | `RF-15` | `src/Services/ActivoService.php`, `tests/Unit/ActivoServiceTest.php` | Devuelve el historial cronológico descendente de un activo ocultando montos y folios de propuesta al `Tecnico` (`CA-09.1`), mostrándolos al `Administrador` (`CA-09.2`), manejando activos sin historial (`CA-09.3`) y bloqueando activos dados de baja (`CA-09.4`). | `ActivoServiceTest` (+4 pruebas `CA-09.1..CA-09.4`, total 9) | `954f4fa` (`feat(RF-15): implementar historial de activos ordenado por fecha y filtrado por rol (M03)`) |
+| **Tarea 5.3:** Duplicación de cotizaciones previas actualizando precios al catálogo vigente | `RF-34` | `src/Services/CotizadorService.php`, `tests/Unit/CotizadorServiceTest.php`, `tests/run_tests.php` | Crea una nueva cotización en `Borrador` a partir de una existente recargando precios vigentes desde `M04`, notificando al usuario qué tarifas cambiaron (`CA-20.2`, ej. `$98,000` -> `$104,500`) y rechazando duplicar cotizaciones eliminadas (`CA-20.3`). | `CotizadorServiceTest` (+3 pruebas `CA-20.1..CA-20.3`, total 11) | `ae62ca0` (`feat(RF-34): implementar duplicacion de cotizaciones con precios vigentes y regresion total (M06)`) |
+
+#### 2. Tabla de resultados de pruebas y regresión final del Incremento 5 (Pasos C1, C2 y C3)
+
+| ID de prueba | RF / CA que verifica | Tipo | Entrada | Resultado esperado | Resultado obtenido | Pasa (Sí/No) |
+|---|---|---|---|---|---|:---:|
+| `P-INC5-01` | `RF-03` / `CA-02.1`, `CA-02.2`, `CA-02.3` | Normal / Límite / Error | Solicitud y uso de token a los 10 min; intento de uso a los 31 min; solicitud para correo inexistente | Contraseña actualizada a los 10 min; excepción de enlace expirado a los 31 min; respuesta genérica sin filtrar existencia de cuenta | Token de 30 min validado en caso normal, límite y error | Sí |
+| `P-INC5-02` | `RF-15` / `CA-09.1`, `CA-09.2`, `CA-09.3`, `CA-09.4` | Normal / Límite / Error | Consulta de historial de activo por `Tecnico` y por `Administrador`; activo recién creado; activo dado de baja | `Tecnico` ve fechas, descripciones y estados sin montos; `Administrador` ve montos y folios; lista vacía con mensaje en activo nuevo; excepción en activo dado de baja | Filtrado por rol y orden cronológico verificados al 100 % | Sí |
+| `P-INC5-03` | `RF-34` / `CA-20.1`, `CA-20.2`, `CA-20.3` | Normal / Límite / Error | Duplicación de cotización tras actualización de tarifa de `$98,000` a `$104,500`; intento de duplicar cotización eliminada | Nuevo borrador recalculado con `$104,500` y alerta en `cambios_precio`; excepción al intentar duplicar cotización inexistente/eliminada | Nuevo borrador con tarifas vigentes, alerta de cambio de precio y bloqueo en registro eliminado | Sí |
+| `REG-FINAL` | Regresión total `v0.1.0` a `v0.5.0` (`php tests/run_tests.php`) | Regresión | Ejecución íntegra de las 8 suites de pruebas unitarias e integración (`M01` a `M09`) | **78 / 78 pruebas aprobadas (0 fallos)** | **78 / 78 pruebas aprobadas (100 %)** | Sí |
+
+---
+
 ## Registros acumulados
 
-### 1. Registro de cambios al plan
+### 1. Matriz de trazabilidad final (43 RF · Incrementos 1 a 5)
+
+| RF / RNF | HU | Incremento | Archivo(s) de código | Commit | Tag | Prueba que lo verifica | Estado |
+|---|---|---|---|---|---|---|---|
+| `RF-01` | `HU-01` | Incremento 2 | `src/Services/AuthRbacService.php` | `f0f89e3` | `v0.2.0` | `AuthRbacServiceTest::testLoginExitosoYMenuPorRol` | Terminado |
+| `RF-02` | `HU-01` | Incremento 2 | `src/Services/AuthRbacService.php` | `f0f89e3` | `v0.2.0` | `AuthRbacServiceTest::testBloqueoAlQuintoIntentoFallido` | Terminado |
+| `RF-03` | `HU-02` | Incremento 5 | `src/Services/AuthRbacService.php` | `e714ed2` | `v0.5.0` | `AuthRbacServiceTest::testRecuperacionContrasenaToken30Min` | Terminado |
+| `RF-04` | `HU-04` | Incremento 2 | `src/Services/AuthRbacService.php` | `f0f89e3` | `v0.2.0` | `AuthRbacServiceTest::testAltaEdicionCambioRolYCorreoDuplicado` | Terminado |
+| `RF-05` | `HU-03` | Incremento 2 | `src/Services/AuthRbacService.php` | `f0f89e3` | `v0.2.0` | `AuthRbacServiceTest::testSanitizacionPreciosParaTecnico` | Terminado |
+| `RF-06` | `HU-03` | Incremento 2 | `src/Services/AuthRbacService.php` | `f0f89e3` | `v0.2.0` | `AuthRbacServiceTest::testBloqueoRutaPreciosTecnicoYBitacora` | Terminado |
+| `RF-07` | `HU-05` | Incremento 2 | `src/Services/AuthRbacService.php` | `f0f89e3` | `v0.2.0` | `AuthRbacServiceTest::testInactividadMinuto19YExpiracionMinuto20` | Terminado |
+| `RF-08` | `HU-06` | Incremento 2 | `src/Services/ClienteService.php` | `ebb489e` | `v0.2.0` | `ClienteServiceTest::testRegistrarYEditarCliente` | Terminado |
+| `RF-09` | `HU-07` | Incremento 2 | `src/Services/ClienteService.php` | `ebb489e` | `v0.2.0` | `ClienteServiceTest::testBusquedaPorNombreRfcContacto` | Terminado |
+| `RF-10` | `HU-07` | Incremento 2 | `src/Services/ClienteService.php` | `ebb489e` | `v0.2.0` | `ClienteServiceTest::testBajaLogicaConservaHistorial` | Terminado |
+| `RF-11` | `HU-06` | Incremento 2 | `src/Services/ClienteService.php` | `ebb489e` | `v0.2.0` | `ClienteServiceTest::testRechazoRfcORazonSocialDuplicada` | Terminado |
+| `RF-12` | `HU-07` | Incremento 2 | `src/Services/ClienteService.php` | `ebb489e` | `v0.2.0` | `ClienteServiceTest::testBajaLogicaConservaHistorial` | Terminado |
+| `RF-13` | `HU-08` | Incremento 2 | `src/Services/ActivoService.php` | `1d434e9` | `v0.2.0` | `ActivoServiceTest::testRegistrarActivoNormalYLimiteDosParadas` | Terminado |
+| `RF-14` | `HU-08` | Incremento 2 | `src/Services/ActivoService.php` | `1d434e9` | `v0.2.0` | `ActivoServiceTest::testRechazoRangosParadasYCapacidad` | Terminado |
+| `RF-15` | `HU-09` | Incremento 5 | `src/Services/ActivoService.php` | `954f4fa` | `v0.5.0` | `ActivoServiceTest::testHistorialActivoFiltradoPorRolYOrdenado` | Terminado |
+| `RF-16` | `HU-10` | Incremento 2 | `src/Services/CatalogoTarifaService.php` | `f684034` | `v0.2.0` | `CatalogoTarifaServiceTest::testRegistrarTarifaEIntegrarConMotorM07` | Terminado |
+| `RF-17` | `HU-10` | Incremento 2 | `src/Services/CatalogoTarifaService.php` | `f684034` | `v0.2.0` | `CatalogoTarifaServiceTest::testVigenciaFuturaNoAplicaHoy` | Terminado |
+| `RF-18` | `HU-10` | Incremento 2 | `src/Services/CatalogoTarifaService.php` | `f684034` | `v0.2.0` | `CatalogoTarifaServiceTest::testRechazoPrecioCeroONegativo` | Terminado |
+| `RF-19` | `HU-11` | Incremento 2 | `src/Services/CatalogoTarifaService.php` | `f684034` | `v0.2.0` | `CatalogoTarifaServiceTest::testImportacionCsvValidaLoteYErrores` | Terminado |
+| `RF-20` | `HU-12` | Incremento 3 | `src/Services/SolicitudService.php` | `a67f493` | `v0.3.0` | `SolicitudServiceTest::testCrearSolicitudNormalSinPrecios` | Terminado |
+| `RF-21` | `HU-12` | Incremento 3 | `src/Services/SolicitudService.php` | `a67f493` | `v0.3.0` | `SolicitudServiceTest::testRechazoSolicitudSinPiezaOSinActivo` | Terminado |
+| `RF-22` | `HU-13` | Incremento 3 | `src/Services/SolicitudService.php` | `a67f493` | `v0.3.0` | `SolicitudServiceTest::testTecnicoConsultaSusSolicitudesSinPrecios` | Terminado |
+| `RF-23` | `HU-14` | Incremento 3 | `src/Services/SolicitudService.php` | `a67f493` | `v0.3.0` | `SolicitudServiceTest::testBandejaComercialPaginada50Registros` | Terminado |
+| `RF-24` | `HU-14` | Incremento 3 | `src/Services/SolicitudService.php` | `a67f493` | `v0.3.0` | `SolicitudServiceTest::testMarcarCotizadaYBloqueoDobleAtencion` | Terminado |
+| `RF-25` | `HU-14` | Incremento 3 | `src/Services/CotizadorService.php` | `03c0b9b` | `v0.3.0` | `CotizadorServiceTest::testConvertirSolicitudACotizacion` | Terminado |
+| `RF-26` | `HU-15` | Incremento 3 | `src/Services/CotizadorService.php` | `03c0b9b` | `v0.3.0` | `CotizadorServiceTest::testRechazoActivoDeOtroCliente` | Terminado |
+| `RF-27` | `HU-15` | Incremento 3 | `src/Services/CalculoMotorService.php` | `932e213` | `v0.3.0` | `CalculoMotorServiceTest::testCotizarEquipoNuevoYCombinacionInexistente` | Terminado |
+| `RF-28` | `HU-16` | Incremento 1 | `src/Services/CalculoMotorService.php` | `9fb2b49` | `v0.1.0` | `CalculoMotorServiceTest::testCasoNormalVariasPartidas` | Terminado |
+| `RF-29` | `HU-17` | Incremento 3 | `src/Services/CalculoMotorService.php` | `932e213` | `v0.3.0` | `CalculoMotorServiceTest::testCotizarPolizaPreventivaYDiscrepancia` | Terminado |
+| `RF-30` | `HU-18` | Incremento 3 | `src/Services/CalculoMotorService.php` | `932e213` | `v0.3.0` | `CalculoMotorServiceTest::testCotizarCorrectivoConFraccionDeHora` | Terminado |
+| `RF-31` | `HU-19` | Incremento 3 | `src/Services/CotizadorService.php` | `03c0b9b` | `v0.3.0` | `CotizadorServiceTest::testRecalculoAlEditarPartidasYBorrador` | Terminado |
+| `RF-32` | `HU-19` | Incremento 3 | `src/Services/CotizadorService.php` | `03c0b9b` | `v0.3.0` | `CotizadorServiceTest::testBloqueoEnvioBorradorIncompleto` | Terminado |
+| `RF-33` | `HU-19` | Incremento 3 | `src/Services/CotizadorService.php` | `03c0b9b` | `v0.3.0` | `CotizadorServiceTest::testTransicionesEstadoYVencimiento15Dias` | Terminado |
+| `RF-34` | `HU-20` | Incremento 5 | `src/Services/CotizadorService.php` | `ae62ca0` | `v0.5.0` | `CotizadorServiceTest::testDuplicarCotizacionActualizaPreciosVigentes` | Terminado |
+| `RF-35` | `HU-21` | Incremento 4 | `src/Services/PropuestaSeguimientoService.php` | `a7c7266` | `v0.4.0` | `PropuestaSeguimientoServiceTest::testEmitirPropuestaPdfCompleta` | Terminado |
+| `RF-36` | `HU-21` | Incremento 4 | `src/Services/PropuestaSeguimientoService.php` | `a7c7266` | `v0.4.0` | `PropuestaSeguimientoServiceTest::testFolioConsecutivoAnualSinRepetir` | Terminado |
+| `RF-37` | `HU-22` | Incremento 4 | `src/Services/PropuestaSeguimientoService.php` | `a7c7266` | `v0.4.0` | `PropuestaSeguimientoServiceTest::testEnvioCorreoYMultiplesEnvios` | Terminado |
+| `RF-38` | `HU-22` | Incremento 4 | `src/Services/PropuestaSeguimientoService.php` | `a7c7266` | `v0.4.0` | `PropuestaSeguimientoServiceTest::testRegistrarAceptacionYRechazo` | Terminado |
+| `RF-39` | `HU-23` | Incremento 4 | `src/Services/ReporteTableroService.php` | `18b483f` | `v0.4.0` | `ReporteTableroServiceTest::testObtenerIndicadoresTableroYPeriodoVacio` | Terminado |
+| `RF-40` | `HU-23` | Incremento 4 | `src/Services/ReporteTableroService.php` | `18b483f` | `v0.4.0` | `ReporteTableroServiceTest::testExportarCsvYRechazoFechasInvertidas` | Terminado |
+| `RF-41` | `HU-24` | Incremento 4 | `src/Services/AuditoriaErrorService.php` | `7115a4a` | `v0.4.0` | `AuditoriaErrorServiceTest::testBitacoraInmutableYPaginacion50` | Terminado |
+| `RF-42` | `HU-24` | Incremento 4 | `src/Services/AuditoriaErrorService.php` | `7115a4a` | `v0.4.0` | `AuditoriaErrorServiceTest::testManejoErrorAmigableSinTrazaTecnica` | Terminado |
+| `RF-43` | `HU-14 / HU-24` | Incremento 4 | `src/Services/AuditoriaErrorService.php` | `7115a4a` | `v0.4.0` | `AuditoriaErrorServiceTest::testRechazoOperacionSobreRegistroCanceladoOCotizado` | Terminado |
+| `RNF-01..RNF-29` | Transversales | Incrementos 1 a 5 | `src/Services/*` | `9fb2b49`..`ae62ca0` | `v0.1.0`..`v0.5.0` | Suite completa `tests/run_tests.php` (78 pruebas) | Terminado |
+
+### 2. Registro de cambios al plan
 
 | Fecha | Cambio al plan | Motivo | Aprobado por |
 |---|---|---|---|
 | 2026-11-04 | Creación y aprobación de la versión inicial del plan de incrementos (`v0.1.0` a `v0.5.0`) en `docs/plan_incrementos.md`. | Estructurar los 42 RF pendientes a partir de `Entrega_Actualizada_COTIZA-ELEV_v3.pdf` tras cerrar `RF-28` en el Incremento 1. | Orlando Villalobos y Diego Alférez |
 | 2026-11-04 | Separación de `RF-03`, `RF-15` y `RF-34` en el Incremento 5 (`v0.5.0`). | Aplicar estrictamente la regla 2 del Prompt A3: son los únicos 3 requerimientos con prioridad Baja en las Secciones 5 y 7 del documento. | Orlando Villalobos y Diego Alférez |
+| 2026-11-05 | Incorporación del parámetro de descuento (`RF-28` / `CA-16.2`, `CA-16.3`) al extender `CalculoMotorService` en el Incremento 3 conservando retrocompatibilidad con la firma de 2 argumentos del Incremento 1. | Garantizar que las 4 pruebas originales del Incremento 1 (`v0.1.0`) sigan pasando sin modificación durante las pruebas de regresión C2. | Orlando Villalobos y Diego Alférez |
+| 2026-11-05 | Cierre y etiquetado secuencial de los Incrementos 2 (`v0.2.0`), 3 (`v0.3.0`), 4 (`v0.4.0`) y 5 (`v0.5.0`) tras aprobar 78/78 pruebas automatizadas. | Cumplimiento íntegro de los 43 RF y 81 CA sin defectos de regresión. | Orlando Villalobos y Diego Alférez |
 
-### 2. Bitácora de uso de IA (Fase A — Planificación)
+### 3. Bitácora de uso de IA (Fases A, B y C)
 
 | Fecha | Herramienta | Prompt o tarea | Qué se aceptó | Qué se modificó o rechazó, y por qué |
 |---|---|---|---|---|
@@ -265,3 +420,18 @@
 | 2026-11-04 | Asistente de análisis (rol ChatGPT / modelo configurado en la sesión) | **Prompt A2:** Construcción del inventario de requerimientos marcando `RF-28` como Implementado y el resto como Pendiente, con prioridades y dependencias citadas. | La tabla de los 43 RF y 29 RNF con sus prioridades exactas del documento (`Alta`, `Media`, `Baja` y `no indicada` para RNF). | Se rechazó una dependencia sugerida hacia un servidor SMTP externo en `RF-03` y `RF-37`, sustituyéndola por la dependencia interna con `RF-01`/`RF-04` y `RF-08`/`RF-35` respaldada en las Secciones 5.1 y 5.7. |
 | 2026-11-04 | Asistente de análisis (rol ChatGPT / modelo configurado en la sesión) | **Prompt A3:** Propuesta de incrementos para 4 semanas restantes y 2 integrantes, respetando dependencias, prioridad, riesgo técnico y extremo a extremo. | La agrupación modular en 4 incrementos adicionales (`v0.2.0` a `v0.5.0`) colocando en el Incremento 2 el aislamiento de precios del técnico (`RF-05`, `RF-06`) por ser el mayor riesgo técnico (`R-07`). | Se modificó la ubicación de `RF-03`, `RF-15` y `RF-34` para agruparlos exclusivamente en el Incremento 5 (`v0.5.0`), respetando que la especificación los marca con prioridad Baja. |
 | 2026-11-04 | Asistente de análisis en conversación independiente (rol ChatGPT / modelo configurado en la sesión) | **Prompt A4:** Validación cruzada independiente del plan contra el documento de especificaciones v3.0. | El checklist de verificación de unicidad de los 43 RF, ausencia de funciones fuera de alcance y orden topológico correcto de dependencias. | Se confirmó que `RF-43` (rechazo de operaciones sobre registros cancelados o solicitudes ya cotizadas) se valida tanto en la atención de solicitudes (`M05`) como en el servicio central de auditoría y errores (`M09`). |
+| 2026-11-05 | Asistente de análisis (rol ChatGPT / modelo configurado en la sesión) | **Prompt B1:** Desglose de los Incrementos 2, 3, 4 y 5 en tareas concretas de 1 a 2 horas con archivos, descripción y pruebas asociadas. | La división en 4 tareas para el Incremento 2 (`M01`–`M04`), 3 tareas para el Incremento 3 (`M05`–`M07`), 3 tareas para el Incremento 4 (`M08`–`M09`) y 3 tareas para el Incremento 5 (`RF-03`, `RF-15`, `RF-34`). | Se rechazó crear controladores HTTP o vistas HTML acopladas en esta capa, manteniendo la arquitectura de servicios de dominio puros bajo `src/Services/` establecida en el Incremento 1. |
+| 2026-11-05 | Asistente de código (rol Claude Code / modelo configurado en la sesión) | **Prompt B3:** Implementación guiada tarea por tarea de los servicios en `src/Services/` para los Incrementos 2 a 5. | La implementación tipada en PHP 8.4 (`declare(strict_types=1)`) con validaciones explícitas de rangos, vigencias, folios `COT-AAAA-NNNN` y bitácora inmutable. | En `CalculoMotorService::calcularCotizacion` se hizo opcional el parámetro `$descuento` (`0.0` por defecto) para no romper la firma usada por las pruebas del Incremento 1 (`v0.1.0`). |
+| 2026-11-05 | Asistente de código (rol Claude Code / modelo configurado en la sesión) | **Prompt C1:** Generación de pruebas automatizadas normales, límite y de error para cada incremento en `tests/Unit/`. | Los casos de prueba basados literalmente en los criterios `CA-01.1` a `CA-24.3` de la Sección 8 del documento de especificaciones. | En las suites del Incremento 4 (`PropuestaSeguimientoServiceTest`, `ReporteTableroServiceTest`, `AuditoriaErrorServiceTest`) se estandarizó el método público `ejecutarTodas(): array` para mantener compatibilidad uniforme con el ejecutor `tests/run_tests.php`. |
+
+---
+
+## Entrega y reflexión individual
+
+| Pregunta | Respuesta |
+|---|---|
+| **URL del repositorio** | `https://github.com/OrlandoVillalobos-AI/COTIZA-ELEV` |
+| **Rama o tag entregado** | Rama `main` con tags `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0` y `v0.5.0` (además de ramas `incremento-2` a `incremento-5` publicadas en `origin`). |
+| **1. ¿Qué dependencia no habías visto antes de hacer el inventario en A2?** | Antes del inventario A2 no habíamos detectado que la duplicación de cotizaciones (`RF-34`, en `M06`) y el cálculo de equipos nuevos y pólizas (`RF-27`, `RF-29`, en `M07`) dependían directamente de la fecha de entrada en vigor del catálogo (`RF-17`, en `M04`), lo cual obligó a construir y probar `CatalogoTarifaService` en el Incremento 2 antes de abordar el cotizador comercial en el Incremento 3. |
+| **2. ¿Qué cambió en tu plan original durante el desarrollo y por qué?** | Al implementar el Incremento 3 fue necesario ampliar `CalculoMotorService` (`M07`, creado en el Incremento 1 para `RF-28`) agregando el soporte de descuentos (`CA-16.2` y `CA-16.3`) con valor por defecto `0.0` y los métodos de equipo nuevo (`RF-27`), póliza (`RF-29`) y correctivo (`RF-30`), cuidando mantener intacta la firma original para que las 4 pruebas de regresión de `v0.1.0` siguieran pasando sin cambios. |
+| **3. ¿Qué error concreto de la IA detectaste al validar con A4 o al correr regresión en C2?** | En el Paso A2 el modelo sugirió que `RF-03` (recuperación de contraseña) y `RF-37` (envío de propuesta) dependían de un servicio externo de correo y plantillas HTML no descrito en la especificación; lo rechazamos al contrastar con las Secciones 4 y 5. En el Paso C2 detectamos que las 3 clases de prueba del Incremento 4 exponían `run()` en vez de `ejecutarTodas()`, lo que habría impedido que `tests/run_tests.php` las ejecutara en la regresión; lo corregimos antes del commit. |
