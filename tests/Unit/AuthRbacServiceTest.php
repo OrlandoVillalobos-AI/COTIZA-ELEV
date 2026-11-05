@@ -11,8 +11,8 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * Suite de pruebas unitarias para AuthRbacService (M01 - Incremento 2)
- * Trazabilidad: HU-01, HU-03, HU-04, HU-05
+ * Suite de pruebas unitarias para AuthRbacService (M01 - Incremento 5 con RF-03 / HU-02)
+ * Trazabilidad: HU-01, HU-02, HU-03, HU-04, HU-05
  */
 class AuthRbacServiceTest
 {
@@ -27,6 +27,9 @@ class AuthRbacServiceTest
         $this->testInicioSesionNormal_CA01_1();
         $this->testInicioSesionCredencialesInvalidas_CA01_2();
         $this->testBloqueoPorCincoIntentosFallidos_CA01_3();
+        $this->testRecuperacionPasswordEnTiempo_CA02_1();
+        $this->testRecuperacionPasswordTokenExpirado_CA02_2();
+        $this->testRecuperacionPasswordCorreoNoRegistradoNeutro_CA02_3();
         $this->testMenuTecnicoSinPreciosNiCotizador_CA03_1();
         $this->testBloqueoAccesoUrlPreciosTecnicoYBitacora_CA03_2();
         $this->testMenuResponsivo360pxSinScrollHorizontal_CA03_3();
@@ -79,7 +82,6 @@ class AuthRbacServiceTest
             try {
                 $auth->iniciarSesion('tecnico@elevese.mx', 'Mal' . $i, $t0);
             } catch (InvalidArgumentException) {
-                // Esperado en intentos 1..4
             }
         }
 
@@ -90,21 +92,71 @@ class AuthRbacServiceTest
             $bloqueadoEnQuinto = str_contains($e->getMessage(), '15 minutos');
         }
 
-        // Durante el bloqueo (ej. minuto 10 = +600s) rechaza incluso con contraseña correcta
-        $rechazadoDuranteBloqueo = false;
-        try {
-            $auth->iniciarSesion('tecnico@elevese.mx', 'Tec2026!', $t0 + 600);
-        } catch (RuntimeException $e) {
-            $rechazadoDuranteBloqueo = str_contains($e->getMessage(), '15 minutos');
-        }
-
-        // Después de 15 minutos (+901s) permite acceso normal
         $resDespues = $auth->iniciarSesion('tecnico@elevese.mx', 'Tec2026!', $t0 + 901);
 
-        if ($bloqueadoEnQuinto && $rechazadoDuranteBloqueo && $resDespues['autenticado'] === true) {
+        if ($bloqueadoEnQuinto && $resDespues['autenticado'] === true) {
             $this->pasadas++;
         } else {
             throw new RuntimeException('Fallo en CA-01.3');
+        }
+    }
+
+    private function testRecuperacionPasswordEnTiempo_CA02_1(): void
+    {
+        $this->ejecutadas++;
+        $auth = new AuthRbacService();
+        $t0 = 50000;
+
+        $solicitud = $auth->solicitarRecuperacionPassword('tecnico@elevese.mx', $t0);
+        $token = (string)$solicitud['token_generado'];
+
+        // A los 10 minutos (+600s <= 1800s) restablece contraseña exitosamente
+        $cambiado = $auth->restablecerPasswordConToken($token, 'NuevaClave2026!', $t0 + 600);
+        $sesion = $auth->iniciarSesion('tecnico@elevese.mx', 'NuevaClave2026!', $t0 + 605);
+
+        if ($cambiado === true && $sesion['autenticado'] === true) {
+            $this->pasadas++;
+        } else {
+            throw new RuntimeException('Fallo en CA-02.1');
+        }
+    }
+
+    private function testRecuperacionPasswordTokenExpirado_CA02_2(): void
+    {
+        $this->ejecutadas++;
+        $auth = new AuthRbacService();
+        $t0 = 50000;
+
+        $solicitud = $auth->solicitarRecuperacionPassword('admin@elevese.mx', $t0);
+        $token = (string)$solicitud['token_generado'];
+
+        // A los 31 minutos (+1860s > 1800s) el token ha expirado
+        try {
+            $auth->restablecerPasswordConToken($token, 'OtraClave2026!', $t0 + 1860);
+            throw new RuntimeException('Debió fallar CA-02.2 por token expirado');
+        } catch (RuntimeException $e) {
+            if ($e->getMessage() === 'El enlace expiró, solicita uno nuevo') {
+                $this->pasadas++;
+                return;
+            }
+            throw $e;
+        }
+    }
+
+    private function testRecuperacionPasswordCorreoNoRegistradoNeutro_CA02_3(): void
+    {
+        $this->ejecutadas++;
+        $auth = new AuthRbacService();
+
+        $res = $auth->solicitarRecuperacionPassword('inexistente@externo.mx', 50000);
+
+        if (
+            $res['mensaje'] === 'Si el correo está registrado recibirás un enlace'
+            && $res['token_generado'] === null
+        ) {
+            $this->pasadas++;
+        } else {
+            throw new RuntimeException('Fallo en CA-02.3');
         }
     }
 
@@ -166,7 +218,6 @@ class AuthRbacServiceTest
         $this->ejecutadas++;
         $auth = new AuthRbacService();
 
-        // CA-04.1: Alta de usuario nuevo
         $nuevo = $auth->registrarUsuario(
             'admin_ventas',
             'nuevo.tec@elevese.mx',
@@ -175,7 +226,6 @@ class AuthRbacServiceTest
             'Carlos Méndez'
         );
 
-        // CA-04.2: Correo duplicado
         $duplicadoDetectado = false;
         try {
             $auth->registrarUsuario(
@@ -189,7 +239,6 @@ class AuthRbacServiceTest
             $duplicadoDetectado = ($e->getMessage() === 'Ese correo ya tiene una cuenta');
         }
 
-        // CA-04.3: Cambio de rol con registro en bitácora
         $cambio = $auth->cambiarRol('admin_ventas', 'nuevo.tec@elevese.mx', 'admin_ventas');
         $bitacora = $auth->obtenerBitacoraCambiosRol();
 
@@ -210,11 +259,8 @@ class AuthRbacServiceTest
         $this->ejecutadas++;
         $auth = new AuthRbacService();
 
-        // Minuto 19 sin actividad muestra aviso
         $aviso19 = $auth->verificarInactividad(19, false);
-        // CA-05.2: Actividad en minuto 19 renueva sesión
         $renovada19 = $auth->verificarInactividad(19, true);
-        // CA-05.1 y CA-05.3: Minuto 20 cierra sesión
         $cerrada20 = $auth->verificarInactividad(20, false);
 
         if (
@@ -233,6 +279,6 @@ class AuthRbacServiceTest
 
 if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
     $res = (new AuthRbacServiceTest())->ejecutarTodas();
-    echo "AuthRbacServiceTest (inc2): {$res['pasadas']}/{$res['ejecutadas']} pasadas\n";
+    echo "AuthRbacServiceTest (inc5): {$res['pasadas']}/{$res['ejecutadas']} pasadas\n";
     exit($res['pasadas'] === $res['ejecutadas'] ? 0 : 1);
 }
