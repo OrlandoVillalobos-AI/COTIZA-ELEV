@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<style>
+  @page {
+    size: letter;
+    margin: 20mm 15mm 20mm 15mm;
+  }
+  body {
+    font-family: 'Segoe UI', Arial, Helvetica, sans-serif;
+    color: #2c3e50;
+    line-height: 1.4;
+    font-size: 10.5pt;
+  }
+  .header {
+    border-bottom: 2px solid #0056b3;
+    padding-bottom: 8px;
+    margin-bottom: 18px;
+  }
+  .header table {
+    width: 100%;
+    border: none;
+  }
+  .header td {
+    border: none;
+    padding: 0;
+  }
+  .header .uni {
+    font-size: 13pt;
+    font-weight: bold;
+    color: #003366;
+  }
+  .header .prof {
+    font-size: 10pt;
+    text-align: right;
+    color: #555;
+  }
+  .title-block {
+    text-align: center;
+    background-color: #f0f4f8;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    border-left: 5px solid #0056b3;
+  }
+  h1 {
+    font-size: 14pt;
+    margin: 0 0 4px 0;
+    color: #003366;
+  }
+  h2 {
+    font-size: 11pt;
+    margin: 0;
+    color: #495057;
+    font-weight: normal;
+  }
+  .meta-table {
+    width: 100%;
+    margin-bottom: 18px;
+    border-collapse: collapse;
+  }
+  .meta-table td {
+    padding: 6px 10px;
+    border: 1px solid #dcdfe6;
+    font-size: 9.5pt;
+  }
+  .meta-table td.label {
+    background-color: #f8f9fa;
+    font-weight: bold;
+    width: 25%;
+    color: #333;
+  }
+  h3 {
+    font-size: 11.5pt;
+    color: #004085;
+    border-bottom: 1.5px solid #bee5eb;
+    padding-bottom: 4px;
+    margin-top: 18px;
+    margin-bottom: 10px;
+  }
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 14px;
+  }
+  table.data-table th, table.data-table td {
+    border: 1px solid #ced4da;
+    padding: 6px 8px;
+    font-size: 9pt;
+    vertical-align: top;
+  }
+  table.data-table th {
+    background-color: #004085;
+    color: #ffffff;
+    font-weight: 600;
+    text-align: left;
+  }
+  table.data-table tr:nth-child(even) {
+    background-color: #fbfcfd;
+  }
+  .tag-ok {
+    color: #155724;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .code-box {
+    background-color: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 8.5pt;
+    color: #333;
+    white-space: pre-wrap;
+    margin-bottom: 12px;
+  }
+  .page-break {
+    page-break-before: always;
+  }
+  .justified {
+    text-align: justify;
+    font-size: 9.5pt;
+    margin-bottom: 8px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <table>
+    <tr>
+      <td class="uni">Universidad Iberoamericana León</td>
+      <td class="prof">Ing. Alejandro Montes Moreno<br>Desarrollo de Aplicaciones y Servicios Virtuales</td>
+    </tr>
+  </table>
+</div>
+
+<div class="title-block">
+  <h1>Práctica guiada: implementación del primer módulo</h1>
+  <h2>Codificación, revisión y pruebas con apoyo de IA · Entorno Antigravity</h2>
+</div>
+
+<table class="meta-table">
+  <tr>
+    <td class="label">Proyecto</td>
+    <td><strong>COTIZA-ELEV</strong> — Sistema Web de Cotizaciones para Elevadores (ELEVESE)</td>
+    <td class="label">Fecha</td>
+    <td>3 de noviembre de 2026</td>
+  </tr>
+  <tr>
+    <td class="label">Integrantes</td>
+    <td>• Orlando Villalobos Gutiérrez (Arquitectura y Backend)<br>• Diego Emilio Alférez Vallejo (QA, Persistencia y Frontend)</td>
+    <td class="label">Repositorio</td>
+    <td><a href="https://github.com/DiegoAlferez-AI/COTIZA-ELEV">github.com/DiegoAlferez-AI/COTIZA-ELEV</a></td>
+  </tr>
+</table>
+
+<h3>Paso 1. Seleccionar el módulo y definir la orden de implementación</h3>
+
+<table class="data-table">
+  <tr>
+    <th style="width: 28%;">Campo</th>
+    <th>Respuesta del equipo</th>
+  </tr>
+  <tr>
+    <td><strong>RF / HU / CA vinculados</strong></td>
+    <td><strong>RF-28</strong> (Cálculo automático de subtotales, IVA y total) / <strong>HU-16</strong> (Cálculo comercial) / Criterios: <strong>CA-16.1</strong> (Normal), <strong>CA-16.2</strong> (Límite centavos), <strong>CA-16.3</strong> (Error).</td>
+  </tr>
+  <tr>
+    <td><strong>Nombre y propósito del módulo</strong></td>
+    <td><strong>M07: Motor de Cálculo Comercial (<code>CalculoMotorService</code>)</strong>. Encapsular la lógica matemática pura del negocio para calcular importes de partidas, subtotal, cálculo de IVA (16%) y total formal a dos decimales con redondeo estándar.</td>
+  </tr>
+  <tr>
+    <td><strong>Entradas y datos que recibe</strong></td>
+    <td>Arreglo <code>$partidas</code> con <code>cantidad</code> (> 0), <code>precio_unitario</code> (≥ 0), <code>descripcion</code> (string opcional). Parámetro opcional: <code>float $tasaIva = 0.16</code>.</td>
+  </tr>
+  <tr>
+    <td><strong>Salidas y mensajes esperados</strong></td>
+    <td>Estructura: <code>subtotal</code>, <code>tasa_iva</code>, <code>monto_iva</code>, <code>total</code> y <code>partidas</code> desglosadas con importe por renglón.</td>
+  </tr>
+  <tr>
+    <td><strong>Validaciones y casos de error</strong></td>
+    <td>1. Rechazar cantidades ≤ 0.<br>2. Rechazar precios unitarios negativos.<br>3. Lanzar <code>InvalidArgumentException</code> ante datos no numéricos.<br>4. Si la lista está vacía, retornar ceros en subtotal/IVA/total.</td>
+  </tr>
+  <tr>
+    <td><strong>Dependencias con otros módulos</strong></td>
+    <td>Ninguna. Es una clase de dominio puro desacoplada de la base de datos (M04/M06) y de las interfaces web.</td>
+  </tr>
+  <tr>
+    <td><strong>Archivos que puede crear o modificar</strong></td>
+    <td><code>src/Services/CalculoMotorService.php</code> y <code>tests/Unit/CalculoMotorServiceTest.php</code>.</td>
+  </tr>
+  <tr>
+    <td><strong>Restricciones: qué no debe cambiar</strong></td>
+    <td>No conectarse a MySQL (PDO), no usar <code>$_SESSION</code>, no renderizar HTML ni alterar estados fuera de memoria.</td>
+  </tr>
+  <tr>
+    <td><strong>Pruebas mínimas requeridas</strong></td>
+    <td>Normal (CA-16.1), Límite con redondeo de centavos (CA-16.2) y Errores de validación de precio/cantidad (CA-16.3).</td>
+  </tr>
+</table>
+
+<p class="justified"><strong>Pregunta de control: ¿la implementación propuesta conserva el alcance y la separación de responsabilidades previstas? Justifiquen.</strong><br>
+<em>Sí, respeta íntegramente la arquitectura modular por capas aprobada. Al mantener el motor de cálculo dentro de <code>src/Services/CalculoMotorService.php</code> como un servicio puro sin llamadas a MySQL ni vistas HTML, se previene el antipatrón de "God Object" en el Cotizador (M06) y se garantiza que las fórmulas comerciales sean reutilizables de forma idéntica en pantallas interactivas, base de datos y reportes PDF.</em></p>
+
+<p><strong>Registro de la decisión del equipo sobre la orden:</strong> <code>Aceptada</code> — Cumple con el alcance delimitado del Hito 1 (Tareas T-04 y T-05) y cuenta con criterios matemáticos verificables.</p>
+
+<div class="page-break"></div>
+
+<h3>Paso 2. Análisis técnico antes de codificar</h3>
+
+<table class="data-table">
+  <tr>
+    <th style="width: 45%;">Aspecto a revisar</th>
+    <th>Resultado / notas del equipo</th>
+  </tr>
+  <tr>
+    <td>El plan respeta el alcance y el diseño modular</td>
+    <td>Sí, acotado estrictamente a la lógica pura del motor M07 sin tocar base de datos ni vistas.</td>
+  </tr>
+  <tr>
+    <td>Los archivos propuestos son razonables</td>
+    <td>Sí, se crean exclusivamente <code>src/Services/CalculoMotorService.php</code> y la suite en <code>tests/</code>.</td>
+  </tr>
+  <tr>
+    <td>Se identificaron riesgos o dudas relevantes</td>
+    <td>Riesgo de discrepancias de centavos mitigado aplicando redondeo <code>round($val, 2, PHP_ROUND_HALF_UP)</code> sobre subtotal acumulado.</td>
+  </tr>
+  <tr>
+    <td>Se requiere ajustar la orden de implementación</td>
+    <td>No, la orden técnica es clara, completa y viable.</td>
+  </tr>
+</table>
+
+<table class="data-table">
+  <tr>
+    <th>Propuesta del asistente</th>
+    <th>Decisión del equipo</th>
+    <th>Justificación</th>
+  </tr>
+  <tr>
+    <td>Implementar <code>CalculoMotorService</code> con PHP 8.2 estricto y suite de pruebas unitarias automatizadas ejecutables en consola CLI.</td>
+    <td><span class="tag-ok">Aceptada</span></td>
+    <td>Permite verificar la lógica financiera con evidencia de ejecución real antes de tocar la base de datos o interfaces.</td>
+  </tr>
+</table>
+
+<h3>Paso 3. Autorizar e implementar el módulo</h3>
+
+<table class="data-table">
+  <tr>
+    <th style="width: 38%;">Elemento</th>
+    <th>Registro</th>
+  </tr>
+  <tr>
+    <td><strong>Archivos efectivamente creados</strong></td>
+    <td><code>src/Services/CalculoMotorService.php</code>, <code>tests/Unit/CalculoMotorServiceTest.php</code>, <code>tests/run_tests.php</code>, <code>README.md</code> y <code>.gitignore</code>.</td>
+  </tr>
+  <tr>
+    <td><strong>Funciones / clases implementadas</strong></td>
+    <td>Clase <code>CalculoMotorService</code> con métodos:<br>
+    • <code>calcularImportePartida(float|int $cantidad, float|int $precioUnitario): float</code><br>
+    • <code>calcularTotales(array $partidas, float $tasaIva = 0.16): array</code></td>
+  </tr>
+  <tr>
+    <td><strong>Validaciones incorporadas</strong></td>
+    <td>Rechazo de cantidad ≤ 0, rechazo de precio unitario < 0, validación de tipos numéricos y parámetros de IVA no negativos.</td>
+  </tr>
+  <tr>
+    <td><strong>Mensajes de error o retorno</strong></td>
+    <td><code>"La cantidad debe ser mayor a 0. Recibido: {cantidad}"</code><br>
+    <code>"El precio unitario no puede ser negativo. Recibido: {precio}"</code></td>
+  </tr>
+  <tr>
+    <td><strong>Cambios que el equipo decidió ajustar</strong></td>
+    <td>Uso de <code>PHP_ROUND_HALF_UP</code> a 2 decimales en el cálculo de cada importe y sobre el IVA del subtotal para garantizar consistencia con los libros contables.</td>
+  </tr>
+</table>
+
+<h3>Paso 4. Diseñar, ejecutar y revisar pruebas</h3>
+
+<table class="data-table">
+  <tr>
+    <th>Caso</th>
+    <th>Datos de entrada</th>
+    <th>Resultado esperado</th>
+    <th>Resultado real obtenido</th>
+    <th>Estado</th>
+  </tr>
+  <tr>
+    <td><strong>Normal / CA-16.1</strong></td>
+    <td>2 piezas a $1,000.00 c/u + 1 mano de obra a $500.00 (IVA 16%).</td>
+    <td>Subtotal: $2,500.00<br>IVA: $400.00<br>Total: $2,900.00</td>
+    <td>Subtotal: $2500.00<br>IVA: $400.00<br>Total: $2900.00</td>
+    <td><span class="tag-ok">Pasa [OK]</span></td>
+  </tr>
+  <tr>
+    <td><strong>Límite / CA-16.2</strong></td>
+    <td>3 refacciones a $333.33 c/u ($999.99).</td>
+    <td>Subtotal: $999.99<br>IVA: $160.00 exacto<br>Total: $1,159.99</td>
+    <td>Subtotal: $999.99<br>IVA: $160.00<br>Total: $1159.99</td>
+    <td><span class="tag-ok">Pasa [OK]</span></td>
+  </tr>
+  <tr>
+    <td><strong>Error / CA-16.3 (A)</strong></td>
+    <td>Precio unitario negativo (-500.00).</td>
+    <td>Lanzar <code>InvalidArgumentException</code>.</td>
+    <td>Excepción capturada: *"El precio unitario no puede ser negativo. Recibido: -500"*</td>
+    <td><span class="tag-ok">Pasa [OK]</span></td>
+  </tr>
+  <tr>
+    <td><strong>Error / CA-16.3 (B)</strong></td>
+    <td>Cantidad en cero (0).</td>
+    <td>Lanzar <code>InvalidArgumentException</code>.</td>
+    <td>Excepción capturada: *"La cantidad debe ser mayor a 0. Recibido: 0"*</td>
+    <td><span class="tag-ok">Pasa [OK]</span></td>
+  </tr>
+</table>
+
+<table class="data-table">
+  <tr>
+    <th style="width: 38%;">Elemento de evidencia</th>
+    <th>Registro</th>
+  </tr>
+  <tr>
+    <td><strong>Comando de ejecución</strong></td>
+    <td><code>C:\xampp\php\php.exe tests\run_tests.php</code></td>
+  </tr>
+  <tr>
+    <td><strong>Salida observada en consola</strong></td>
+    <td>
+      <div class="code-box">========================================================
+ EJECUCIÓN DE PRUEBAS UNITARIAS: CalculoMotorService (M07)
+ Entorno: PHP 8.2.12 en Windows
+========================================================
+[PRUEBA 1 - NORMAL / CA-16.1] Cálculo estándar: PASA [OK]
+[PRUEBA 2 - LÍMITE / CA-16.2] Precisión de centavos: PASA [OK]
+[PRUEBA 3 - ERROR / CA-16.3] Precio negativo: PASA [OK]
+[PRUEBA 4 - ERROR / CA-16.3] Cantidad en cero: PASA [OK]
+--------------------------------------------------------
+RESULTADO FINAL: 4 de 4 pruebas pasaron exitosamente.
+ESTADO: APROBADO [100% SUCCESS]
+========================================================</div>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Explicación por integrante</strong></td>
+    <td>• <strong>Orlando Villalobos:</strong> Métodos puros, aislamiento matemático y precisión de redondeo financiero.<br>
+    • <strong>Diego Alférez:</strong> Suite de pruebas unitarias, cobertura de casos normal, límite y error, y aserción de centavos.</td>
+  </tr>
+</table>
+
+<div class="page-break"></div>
+
+<h3>Paso 5. Crear commit, hacer push y verificar GitHub</h3>
+
+<table class="data-table">
+  <tr>
+    <th style="width: 38%;">Evidencia</th>
+    <th>Dato</th>
+  </tr>
+  <tr>
+    <td><strong>URL del repositorio / rama</strong></td>
+    <td><a href="https://github.com/DiegoAlferez-AI/COTIZA-ELEV">https://github.com/DiegoAlferez-AI/COTIZA-ELEV</a> / rama <code>main</code></td>
+  </tr>
+  <tr>
+    <td><strong>Hash o referencia del commit</strong></td>
+    <td><code>9fb2b49d22bea5329fe4bbb869673fa8c95607b6</code> (corto: <code>9fb2b49</code>)</td>
+  </tr>
+  <tr>
+    <td><strong>Rama local y remota en GitHub</strong></td>
+    <td><code>main</code> -> <code>origin/main</code> (Sincronizado al 100%)</td>
+  </tr>
+  <tr>
+    <td><strong>Resultado del push</strong></td>
+    <td><code>To https://github.com/DiegoAlferez-AI/COTIZA-ELEV.git * [new branch] main -> main (Exitoso)</code></td>
+  </tr>
+  <tr>
+    <td><strong>URL del commit visible en GitHub</strong></td>
+    <td><a href="https://github.com/DiegoAlferez-AI/COTIZA-ELEV/commit/9fb2b49d22bea5329fe4bbb869673fa8c95607b6">github.com/DiegoAlferez-AI/COTIZA-ELEV/commit/9fb2b49</a></td>
+  </tr>
+  <tr>
+    <td><strong>RF y módulo implementado</strong></td>
+    <td><strong>RF-28</strong> (Cálculo de cotizaciones) / <strong>M07: Motor de Cálculo Comercial</strong></td>
+  </tr>
+  <tr>
+    <td><strong>Pruebas que pasan y pendientes</strong></td>
+    <td>Pasan: 4 pruebas (CA-16.1, CA-16.2, CA-16.3A, CA-16.3B). Pendientes: Ninguna en M07.</td>
+  </tr>
+  <tr>
+    <td><strong>Ubicación de la evidencia</strong></td>
+    <td>Archivo ejecutable <code>tests/run_tests.php</code> ejecutado en terminal con PHP 8.2.</td>
+  </tr>
+  <tr>
+    <td><strong>Siguiente tarea o dependencia</strong></td>
+    <td>T-06 (Servicio de autenticación RBAC M01) y T-01 (Script DDL MySQL InnoDB).</td>
+  </tr>
+</table>
+
+<h3>Paso 6. Revisión final y decisión del equipo</h3>
+
+<p class="justified"><strong>Registro de la decisión del equipo:</strong><br>
+<em>El módulo M07 (<code>CalculoMotorService</code>) queda <strong>Aceptado formalmente</strong>. Cumple íntegramente con los requerimientos RF-28, HU-16 y criterios de aceptación CA-16.1 al CA-16.3. Conserva como pendiente su vinculación con el Cotizador web (M06) en el Hito 3 del proyecto.</em></p>
+
+<table class="data-table">
+  <tr>
+    <th>Checklist de Definición de Terminado (DoD)</th>
+    <th style="width: 20%; text-align: center;">Estado</th>
+  </tr>
+  <tr>
+    <td>El módulo cumple el RF y conserva las entradas y salidas previstas.</td>
+    <td style="text-align: center;"><strong>[X] Sí</strong> / [ ] No</td>
+  </tr>
+  <tr>
+    <td>Las validaciones y errores definidos están contemplados.</td>
+    <td style="text-align: center;"><strong>[X] Sí</strong> / [ ] No</td>
+  </tr>
+  <tr>
+    <td>Se ejecutaron pruebas normal, límite y error con resultados anotados.</td>
+    <td style="text-align: center;"><strong>[X] Sí</strong> / [ ] No</td>
+  </tr>
+  <tr>
+    <td>El código se entiende y cada integrante puede explicar una parte.</td>
+    <td style="text-align: center;"><strong>[X] Sí</strong> / [ ] No</td>
+  </tr>
+  <tr>
+    <td>Cada commit de código tiene push y está publicado en GitHub.</td>
+    <td style="text-align: center;"><strong>[X] Sí</strong> / [ ] No</td>
+  </tr>
+  <tr>
+    <td>Se actualizó trazabilidad y bitácora de IA.</td>
+    <td style="text-align: center;"><strong>[X] Sí</strong> / [ ] No</td>
+  </tr>
+</table>
+
+<h3>Entrega y reflexión individual</h3>
+
+<table class="data-table">
+  <tr>
+    <th style="width: 25%;">Integrante</th>
+    <th style="width: 35%;">¿Qué parte del módulo puede explicar?</th>
+    <th>¿Qué aprendió al comparar diseño y ejecución?</th>
+  </tr>
+  <tr>
+    <td><strong>Orlando Villalobos Gutiérrez</strong></td>
+    <td>La estructura de la clase <code>CalculoMotorService</code>, el aislamiento del dominio puro y el redondeo estricto con <code>round($subtotal * $iva, 2, PHP_ROUND_HALF_UP)</code>.</td>
+    <td>Que aislar la lógica matemática en un módulo desacoplado permite verificar reglas comerciales en milisegundos sin requerir servidores web ni bases de datos activas.</td>
+  </tr>
+  <tr>
+    <td><strong>Diego Emilio Alférez Vallejo</strong></td>
+    <td>La suite de pruebas en <code>tests/run_tests.php</code>, los casos de borde de centavos (3 refacciones a $333.33) y la captura de excepciones <code>InvalidArgumentException</code>.</td>
+    <td>Que definir con rigor los criterios de aceptación (Normal, Límite, Error) antes de codificar permite automatizar pruebas con evidencia real y sin ambigüedades.</td>
+  </tr>
+</table>
+
+</body>
+</html>

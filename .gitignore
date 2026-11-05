@@ -7,3 +7,20 @@ env/
 .DS_Store
 ~$*
 .~lock.*
+
+# Dependencias y entornos
+/vendor/
+node_modules/
+
+# Entorno y credenciales (Seguridad estricta)
+.env
+.env.local
+*.log
+storage/logs/*.log
+
+# IDE y Sistema Operativo
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
