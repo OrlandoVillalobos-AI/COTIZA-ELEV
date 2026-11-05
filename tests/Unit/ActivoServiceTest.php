@@ -11,8 +11,8 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * Suite de pruebas unitarias para ActivoService (M03 - Incremento 2)
- * Trazabilidad: HU-08
+ * Suite de pruebas unitarias para ActivoService (M03 - Incremento 5 con RF-15 / HU-09)
+ * Trazabilidad: HU-08, HU-09
  */
 class ActivoServiceTest
 {
@@ -28,6 +28,10 @@ class ActivoServiceTest
         $this->testRegistroActivoFueraDeRango_CA08_2();
         $this->testRegistroActivoSinCliente_CA08_3();
         $this->testRegistroActivoLimiteDosParadas_CA08_4();
+        $this->testHistorialVistaTecnicoSinImportes_CA09_1();
+        $this->testHistorialVistaAdminConImportesYFolio_CA09_2();
+        $this->testHistorialActivoNuevoSinMovimientos_CA09_3();
+        $this->testHistorialActivoInexistenteODadoDeBaja_CA09_4();
 
         return [
             'ejecutadas' => $this->ejecutadas,
@@ -164,10 +168,182 @@ class ActivoServiceTest
             throw new RuntimeException('Fallo en CA-08.4');
         }
     }
+
+    private function testHistorialVistaTecnicoSinImportes_CA09_1(): void
+    {
+        $this->ejecutadas++;
+        $service = new ActivoService();
+
+        $activo = $service->registrarActivo([
+            'cliente_id' => 1,
+            'tipo' => 'pasajeros',
+            'marca' => 'Otis',
+            'modelo' => 'Gen2',
+            'serie' => 'OT-HIST-01',
+            'capacidad_kg' => 800,
+            'paradas' => 6,
+            'velocidad' => 1.6,
+            'anio' => 2021,
+            'ubicacion' => 'Torre A',
+        ]);
+
+        $service->registrarMovimientoHistorial($activo['id'], [
+            'tipo_servicio' => 'Mantenimiento preventivo',
+            'fecha' => '2026-01-10',
+            'estado' => 'Completado',
+            'estado_comercial' => 'Aceptada',
+            'folio_propuesta' => 'COT-2026-0001',
+            'monto' => 4500.00,
+        ]);
+        $service->registrarMovimientoHistorial($activo['id'], [
+            'tipo_servicio' => 'Cambio de tarjetas de control',
+            'fecha' => '2026-03-15',
+            'estado' => 'En proceso',
+            'estado_comercial' => 'Enviada',
+            'folio_propuesta' => 'COT-2026-0014',
+            'monto' => 18500.00,
+        ]);
+        $service->registrarMovimientoHistorial($activo['id'], [
+            'tipo_servicio' => 'Ajuste de puertas de cabina',
+            'fecha' => '2026-02-20',
+            'estado' => 'Completado',
+            'estado_comercial' => 'Aceptada',
+            'folio_propuesta' => 'COT-2026-0008',
+            'monto' => 3200.00,
+        ]);
+
+        $historialTec = $service->consultarHistorialActivo($activo['id'], 'tecnico');
+        $movs = $historialTec['movimientos'];
+
+        $ordenDescendente = ($movs[0]['fecha'] === '2026-03-15')
+            && ($movs[1]['fecha'] === '2026-02-20')
+            && ($movs[2]['fecha'] === '2026-01-10');
+
+        $sinMontoNiFolio = !array_key_exists('monto', $movs[0])
+            && !array_key_exists('folio_propuesta', $movs[0]);
+
+        if (count($movs) === 3 && $ordenDescendente && $sinMontoNiFolio) {
+            $this->pasadas++;
+        } else {
+            throw new RuntimeException('Fallo en CA-09.1');
+        }
+    }
+
+    private function testHistorialVistaAdminConImportesYFolio_CA09_2(): void
+    {
+        $this->ejecutadas++;
+        $service = new ActivoService();
+
+        $activo = $service->registrarActivo([
+            'cliente_id' => 1,
+            'tipo' => 'pasajeros',
+            'marca' => 'Otis',
+            'modelo' => 'Gen2',
+            'serie' => 'OT-HIST-02',
+            'capacidad_kg' => 800,
+            'paradas' => 6,
+            'velocidad' => 1.6,
+            'anio' => 2021,
+            'ubicacion' => 'Torre B',
+        ]);
+
+        $service->registrarMovimientoHistorial($activo['id'], [
+            'tipo_servicio' => 'Modernización de variador',
+            'fecha' => '2026-04-02',
+            'estado' => 'Completado',
+            'estado_comercial' => 'Aceptada',
+            'folio_propuesta' => 'COT-2026-0025',
+            'monto' => 42000.00,
+        ]);
+
+        $historialAdmin = $service->consultarHistorialActivo($activo['id'], 'admin_ventas');
+        $primero = $historialAdmin['movimientos'][0];
+
+        if (
+            $primero['monto'] === 42000.00
+            && $primero['folio_propuesta'] === 'COT-2026-0025'
+            && $primero['estado_comercial'] === 'Aceptada'
+        ) {
+            $this->pasadas++;
+        } else {
+            throw new RuntimeException('Fallo en CA-09.2');
+        }
+    }
+
+    private function testHistorialActivoNuevoSinMovimientos_CA09_3(): void
+    {
+        $this->ejecutadas++;
+        $service = new ActivoService();
+
+        $activo = $service->registrarActivo([
+            'cliente_id' => 1,
+            'tipo' => 'pasajeros',
+            'marca' => 'Kone',
+            'modelo' => 'NMonoSpace',
+            'serie' => 'KN-NUEVO-01',
+            'capacidad_kg' => 630,
+            'paradas' => 5,
+            'velocidad' => 1.0,
+            'anio' => 2026,
+            'ubicacion' => 'Edificio Sur',
+        ]);
+
+        $historial = $service->consultarHistorialActivo($activo['id'], 'tecnico');
+
+        if (
+            $historial['mensaje'] === 'Este activo todavía no tiene servicios registrados'
+            && $historial['movimientos'] === []
+        ) {
+            $this->pasadas++;
+        } else {
+            throw new RuntimeException('Fallo en CA-09.3');
+        }
+    }
+
+    private function testHistorialActivoInexistenteODadoDeBaja_CA09_4(): void
+    {
+        $this->ejecutadas++;
+        $service = new ActivoService();
+
+        $activo = $service->registrarActivo([
+            'cliente_id' => 1,
+            'tipo' => 'carga',
+            'marca' => 'Schindler',
+            'modelo' => '2600',
+            'serie' => 'SC-BAJA-01',
+            'capacidad_kg' => 2000,
+            'paradas' => 4,
+            'velocidad' => 0.8,
+            'anio' => 2019,
+            'ubicacion' => 'Almacén',
+        ]);
+
+        $service->darDeBajaActivo($activo['id']);
+
+        $fallaDadoDeBaja = false;
+        try {
+            $service->consultarHistorialActivo($activo['id'], 'admin_ventas');
+        } catch (RuntimeException $e) {
+            $fallaDadoDeBaja = ($e->getMessage() === 'El activo no existe o fue dado de baja');
+        }
+
+        $fallaInexistente = false;
+        try {
+            $service->consultarHistorialActivo(999, 'admin_ventas');
+        } catch (RuntimeException $e) {
+            $fallaInexistente = ($e->getMessage() === 'El activo no existe o fue dado de baja');
+        }
+
+        if ($fallaDadoDeBaja && $fallaInexistente) {
+            $this->pasadas++;
+        } else {
+            throw new RuntimeException('Fallo en CA-09.4');
+        }
+    }
 }
 
 if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
     $res = (new ActivoServiceTest())->ejecutarTodas();
-    echo "ActivoServiceTest (inc2): {$res['pasadas']}/{$res['ejecutadas']} pasadas\n";
+    echo "ActivoServiceTest (inc5): {$res['pasadas']}/{$res['ejecutadas']} pasadas\n";
     exit($res['pasadas'] === $res['ejecutadas'] ? 0 : 1);
 }

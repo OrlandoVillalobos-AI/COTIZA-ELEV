@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Unit;
 
-require_once __DIR__ . '/../../src/Services/CalculoMotorService.php';
-require_once __DIR__ . '/../../src/Services/SolicitudService.php';
+$baseServicesDir = is_file(__DIR__ . '/../../src/Services/CalculoMotorService.php')
+    ? __DIR__ . '/../../src/Services'
+    : '/tmp/cotiza_staging/inc3/src/Services';
+
+require_once $baseServicesDir . '/CalculoMotorService.php';
+require_once $baseServicesDir . '/SolicitudService.php';
 require_once __DIR__ . '/../../src/Services/CotizadorService.php';
 
 use CotizaElev\Services\CalculoMotorService;
@@ -14,8 +18,8 @@ use CotizaElev\Services\SolicitudService;
 use RuntimeException;
 
 /**
- * Suite de pruebas unitarias para CotizadorService (M06 - Incremento 3)
- * Trazabilidad: RF-25, RF-26, RF-31, RF-32, RF-33 / HU-14, HU-15, HU-19
+ * Suite de pruebas unitarias para CotizadorService (M06 - Incremento 5 con RF-34)
+ * Trazabilidad: RF-25, RF-26, RF-31, RF-32, RF-33, RF-34 / HU-14, HU-15, HU-19, HU-20
  */
 class CotizadorServiceTest
 {
@@ -27,11 +31,17 @@ class CotizadorServiceTest
      */
     public function ejecutarTodas(): array
     {
+        // Pruebas de Incremento 3
         $this->testConvertirSolicitudEnCotizacion_CA14_3();
         $this->testErrorActivoNoPerteneceAlCliente_CA15_2();
         $this->testRecalculoInmediatoAlModificarPartidas_CA19_1();
         $this->testCicloEstadosYVencimientoAutomatico_CA19_2();
         $this->testBorradorIncompletoBloqueaEnvioYPermiteRecuperar_CA19_3();
+
+        // Pruebas de Incremento 5 (RF-34 / HU-20: Duplicación de cotización)
+        $this->testDuplicarCotizacionNormal_CA20_1();
+        $this->testDuplicarCotizacionConCambioDeTarifaVigente_CA20_2();
+        $this->testDuplicarCotizacionEliminadaError_CA20_3();
 
         return [
             'ejecutadas' => $this->ejecutadas,
@@ -203,10 +213,102 @@ class CotizadorServiceTest
             $this->pasadas++;
         }
     }
+
+    /**
+     * CA-20.1: Duplicación normal de cotización crea nuevo folio en borrador con partidas y precios vigentes
+     */
+    public function testDuplicarCotizacionNormal_CA20_1(): void
+    {
+        $this->ejecutadas++;
+        $cotizador = new CotizadorService(new CalculoMotorService());
+
+        $origen = $cotizador->crearCotizacion([
+            'cliente_id' => 10,
+            'activo_id' => 12,
+            'tipo' => 'modernizacion',
+            'partidas' => [
+                ['descripcion' => 'Kit de botonera de cabina inox', 'cantidad' => 1, 'precio_unitario' => 42000.00],
+            ],
+        ]);
+
+        $duplicada = $cotizador->duplicarCotizacion($origen['id'], 18, 33, [
+            'Kit de botonera de cabina inox' => 42000.00,
+        ]);
+
+        if (
+            $duplicada['id'] !== $origen['id'] &&
+            $duplicada['folio'] !== $origen['folio'] &&
+            $duplicada['estado'] === 'borrador' &&
+            $duplicada['cliente_id'] === 18 &&
+            $duplicada['activo_id'] === 33 &&
+            $duplicada['subtotal'] === 42000.00
+        ) {
+            $this->pasadas++;
+        }
+    }
+
+    /**
+     * CA-20.2: Si el precio del catálogo cambió (de $98,000.00 a $104,500.00), actualiza y registra el aviso exacto
+     */
+    public function testDuplicarCotizacionConCambioDeTarifaVigente_CA20_2(): void
+    {
+        $this->ejecutadas++;
+        $cotizador = new CotizadorService(new CalculoMotorService());
+
+        $origen = $cotizador->crearCotizacion([
+            'cliente_id' => 10,
+            'activo_id' => 12,
+            'tipo' => 'modernizacion',
+            'partidas' => [
+                ['descripcion' => 'Máquina de tracción gearless', 'cantidad' => 1, 'precio_unitario' => 98000.00],
+            ],
+        ]);
+
+        $duplicada = $cotizador->duplicarCotizacion($origen['id'], 10, 12, [
+            'Máquina de tracción gearless' => 104500.00,
+        ]);
+
+        $avisoEsperado = 'Se actualizaron precios a tarifa vigente: antes $98,000.00, ahora $104,500.00';
+
+        if (
+            $duplicada['subtotal'] === 104500.00 &&
+            in_array($avisoEsperado, $duplicada['avisos'], true)
+        ) {
+            $this->pasadas++;
+        }
+    }
+
+    /**
+     * CA-20.3: Si la cotización origen fue eliminada o no existe, lanza excepción "La cotización ya no existe"
+     */
+    public function testDuplicarCotizacionEliminadaError_CA20_3(): void
+    {
+        $this->ejecutadas++;
+        $cotizador = new CotizadorService(new CalculoMotorService());
+
+        $origen = $cotizador->crearCotizacion([
+            'cliente_id' => 10,
+            'activo_id' => 12,
+            'tipo' => 'correctivo',
+            'partidas' => [
+                ['descripcion' => 'Sensor magnético de piso', 'cantidad' => 2, 'precio_unitario' => 850.00],
+            ],
+        ]);
+
+        $cotizador->eliminarCotizacion($origen['id']);
+
+        try {
+            $cotizador->duplicarCotizacion($origen['id'], 10, 12, []);
+        } catch (RuntimeException $e) {
+            if ($e->getMessage() === 'La cotización ya no existe') {
+                $this->pasadas++;
+            }
+        }
+    }
 }
 
 if (realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__) {
     $res = (new CotizadorServiceTest())->ejecutarTodas();
-    echo "CotizadorServiceTest (Inc3): {$res['pasadas']}/{$res['ejecutadas']} pasadas.\n";
+    echo "CotizadorServiceTest (Inc5): {$res['pasadas']}/{$res['ejecutadas']} pasadas.\n";
     exit($res['pasadas'] === $res['ejecutadas'] ? 0 : 1);
 }

@@ -8,15 +8,16 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * M01: Autenticación y Control de Acceso Basado en Roles (AuthRbacService)
+ * M01: Autenticación y Control de Acceso Basado en Roles (AuthRbacService - Incremento 5)
  *
- * Atiende a: RF-01, RF-02, RF-04, RF-05, RF-06, RF-07
- * Historias de usuario: HU-01, HU-03, HU-04, HU-05
+ * Atiende a: RF-01, RF-02, RF-03, RF-04, RF-05, RF-06, RF-07
+ * Historias de usuario: HU-01, HU-02, HU-03, HU-04, HU-05
  */
 class AuthRbacService
 {
     public const MAX_INTENTOS_FALLIDOS = 5;
     public const SEGUNDOS_BLOQUEO = 900; // 15 minutos
+    public const SEGUNDOS_VIGENCIA_TOKEN_RECUPERACION = 1800; // 30 minutos
     public const MINUTOS_AVISO_INACTIVIDAD = 19;
     public const MINUTOS_LIMITE_INACTIVIDAD = 20;
 
@@ -28,6 +29,9 @@ class AuthRbacService
 
     /** @var array<int, array<string, mixed>> */
     private array $bitacoraAccesos = [];
+
+    /** @var array<string, array{correo: string, expira_en: int, usado: bool}> */
+    private array $tokensRecuperacion = [];
 
     public function __construct()
     {
@@ -184,6 +188,53 @@ class AuthRbacService
             'rol' => $usuario['rol'],
             'menu' => $this->obtenerMenuPorRol($usuario['rol']),
         ];
+    }
+
+    /**
+     * RF-03 (CA-02.1, CA-02.3): Solicitud de recuperación de contraseña con respuesta neutra y token temporal (30 min).
+     */
+    public function solicitarRecuperacionPassword(string $correo, int $timestampActual): array
+    {
+        $correoNorm = strtolower(trim($correo));
+        $token = null;
+
+        if (isset($this->usuarios[$correoNorm])) {
+            $token = bin2hex(random_bytes(16));
+            $this->tokensRecuperacion[$token] = [
+                'correo' => $correoNorm,
+                'expira_en' => $timestampActual + self::SEGUNDOS_VIGENCIA_TOKEN_RECUPERACION,
+                'usado' => false,
+            ];
+        }
+
+        return [
+            'mensaje' => 'Si el correo está registrado recibirás un enlace',
+            'token_generado' => $token,
+        ];
+    }
+
+    /**
+     * RF-03 (CA-02.1, CA-02.2): Restablecimiento de contraseña validando vigencia de 30 minutos del token.
+     */
+    public function restablecerPasswordConToken(string $token, string $nuevaPassword, int $timestampActual): bool
+    {
+        if (!isset($this->tokensRecuperacion[$token])) {
+            throw new InvalidArgumentException('Token de recuperación inválido');
+        }
+
+        $datosToken = &$this->tokensRecuperacion[$token];
+
+        if ($datosToken['usado'] === true || $timestampActual > $datosToken['expira_en']) {
+            throw new RuntimeException('El enlace expiró, solicita uno nuevo');
+        }
+
+        $correo = $datosToken['correo'];
+        $this->usuarios[$correo]['password_hash'] = password_hash($nuevaPassword, PASSWORD_DEFAULT);
+        $this->usuarios[$correo]['intentos_fallidos'] = 0;
+        $this->usuarios[$correo]['bloqueado_hasta'] = 0;
+        $datosToken['usado'] = true;
+
+        return true;
     }
 
     /**

@@ -8,9 +8,9 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * M06: Cotizador Comercial (CotizadorService) - Incremento 3
+ * M06: Cotizador Comercial (CotizadorService) - Incremento 5 (incluye RF-34 Duplicación de Cotización)
  *
- * Atiende a: RF-25, RF-26, RF-31, RF-32, RF-33 / HU-14, HU-15, HU-19.
+ * Atiende a: RF-25, RF-26, RF-31, RF-32, RF-33, RF-34 / HU-14, HU-15, HU-19, HU-20.
  */
 class CotizadorService
 {
@@ -135,6 +135,7 @@ class CotizadorService
             'id' => $id,
             'folio' => $folio,
             'solicitud_origen_id' => $datos['solicitud_origen_id'] ?? null,
+            'cotizacion_origen_id' => $datos['cotizacion_origen_id'] ?? null,
             'cliente_id' => $clienteId,
             'activo_id' => $activoId,
             'tipo' => $tipo,
@@ -149,7 +150,7 @@ class CotizadorService
             'monto_iva' => $totales['monto_iva'],
             'total' => $totales['total'],
             'partidas' => $totales['partidas'],
-            'avisos' => [],
+            'avisos' => $datos['avisos'] ?? [],
         ];
 
         $this->cotizaciones[$id] = $cotizacion;
@@ -166,7 +167,7 @@ class CotizadorService
     public function completarBorrador(int $cotizacionId, array $datosComplementarios = []): array
     {
         if (!isset($this->cotizaciones[$cotizacionId])) {
-            throw new RuntimeException("La cotización no existe");
+            throw new RuntimeException("La cotización ya no existe");
         }
 
         $this->cotizaciones[$cotizacionId]['incompleta'] = false;
@@ -250,5 +251,71 @@ class CotizadorService
         }
 
         return $cot;
+    }
+
+    /**
+     * Elimina una cotización existente del registro activo (HU-20 / CA-20.3).
+     *
+     * @param int $cotizacionId
+     * @return void
+     */
+    public function eliminarCotizacion(int $cotizacionId): void
+    {
+        unset($this->cotizaciones[$cotizacionId]);
+    }
+
+    /**
+     * Duplica una cotización previa como base para una nueva en borrador, actualizando a precios vigentes
+     * y registrando avisos si alguna tarifa cambió (RF-34 / HU-20: CA-20.1, CA-20.2, CA-20.3).
+     *
+     * @param int $cotizacionOrigenId
+     * @param int $nuevoClienteId
+     * @param int $nuevoActivoId
+     * @param array<string, float|int> $catalogoPreciosVigentes Mapa descripcion => precio_vigente
+     * @return array<string, mixed>
+     */
+    public function duplicarCotizacion(
+        int $cotizacionOrigenId,
+        int $nuevoClienteId,
+        int $nuevoActivoId,
+        array $catalogoPreciosVigentes
+    ): array {
+        if (!isset($this->cotizaciones[$cotizacionOrigenId])) {
+            throw new RuntimeException("La cotización ya no existe");
+        }
+
+        $origen = $this->cotizaciones[$cotizacionOrigenId];
+        $partidasActualizadas = [];
+        $avisos = [];
+
+        foreach ($origen['partidas'] as $partida) {
+            $descripcion = (string)$partida['descripcion'];
+            $precioAnterior = (float)$partida['precio_unitario'];
+            $precioNuevo = isset($catalogoPreciosVigentes[$descripcion])
+                ? (float)$catalogoPreciosVigentes[$descripcion]
+                : $precioAnterior;
+
+            if (abs($precioNuevo - $precioAnterior) >= 0.01) {
+                $antesFmt = number_format($precioAnterior, 2, '.', ',');
+                $ahoraFmt = number_format($precioNuevo, 2, '.', ',');
+                $avisos[] = "Se actualizaron precios a tarifa vigente: antes \${$antesFmt}, ahora \${$ahoraFmt}";
+            }
+
+            $partidasActualizadas[] = [
+                'descripcion' => $descripcion,
+                'cantidad' => (float)$partida['cantidad'],
+                'precio_unitario' => $precioNuevo,
+            ];
+        }
+
+        return $this->crearCotizacion([
+            'cotizacion_origen_id' => $cotizacionOrigenId,
+            'cliente_id' => $nuevoClienteId,
+            'activo_id' => $nuevoActivoId,
+            'activo_cliente_id' => $nuevoClienteId,
+            'tipo' => $origen['tipo'],
+            'partidas' => $partidasActualizadas,
+            'avisos' => $avisos,
+        ]);
     }
 }

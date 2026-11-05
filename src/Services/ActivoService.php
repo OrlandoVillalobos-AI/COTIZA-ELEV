@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace CotizaElev\Services;
 
 use InvalidArgumentException;
+use RuntimeException;
 
 /**
- * M03: Registro de Activos e Instalaciones (ActivoService)
+ * M03: Registro de Activos e Instalaciones e Historial (ActivoService - Incremento 5)
  *
- * Atiende a: RF-13, RF-14
- * Historias de usuario: HU-08
+ * Atiende a: RF-13, RF-14, RF-15
+ * Historias de usuario: HU-08, HU-09
  */
 class ActivoService
 {
@@ -20,6 +21,9 @@ class ActivoService
 
     /** @var array<int, array<string, mixed>> */
     private array $activos = [];
+
+    /** @var array<int, array<int, array<string, mixed>>> */
+    private array $historialPorActivo = [];
 
     private int $siguienteId = 1;
 
@@ -77,6 +81,7 @@ class ActivoService
         ];
 
         $this->activos[$id] = $nuevoActivo;
+        $this->historialPorActivo[$id] = [];
 
         return $nuevoActivo;
     }
@@ -88,5 +93,90 @@ class ActivoService
         }
 
         return $this->activos[$id];
+    }
+
+    /**
+     * RF-15: Registra un movimiento comercial o de servicio en el historial del activo.
+     */
+    public function registrarMovimientoHistorial(int $activoId, array $movimiento): void
+    {
+        if (!isset($this->activos[$activoId]) || $this->activos[$activoId]['activo'] !== true) {
+            throw new RuntimeException('El activo no existe o fue dado de baja');
+        }
+
+        $this->historialPorActivo[$activoId][] = [
+            'tipo_servicio' => (string)($movimiento['tipo_servicio'] ?? 'Servicio general'),
+            'fecha' => (string)($movimiento['fecha'] ?? date('Y-m-d')),
+            'estado' => (string)($movimiento['estado'] ?? 'Completado'),
+            'estado_comercial' => (string)($movimiento['estado_comercial'] ?? ($movimiento['estado'] ?? 'Aceptada')),
+            'folio_propuesta' => (string)($movimiento['folio_propuesta'] ?? ''),
+            'monto' => isset($movimiento['monto']) ? round((float)$movimiento['monto'], 2, PHP_ROUND_HALF_UP) : 0.0,
+        ];
+    }
+
+    /**
+     * RF-15 (CA-09.4): Da de baja lógica un activo.
+     */
+    public function darDeBajaActivo(int $activoId): void
+    {
+        if (!isset($this->activos[$activoId])) {
+            throw new RuntimeException('El activo no existe o fue dado de baja');
+        }
+
+        $this->activos[$activoId]['activo'] = false;
+    }
+
+    /**
+     * RF-15 (CA-09.1, CA-09.2, CA-09.3, CA-09.4): Consulta historial ordenado de más reciente a más antiguo,
+     * ocultando importes y folios comerciales al rol técnico y mostrándolos a admin_ventas.
+     */
+    public function consultarHistorialActivo(int $activoId, string $rol): array
+    {
+        if (!isset($this->activos[$activoId]) || $this->activos[$activoId]['activo'] !== true) {
+            throw new RuntimeException('El activo no existe o fue dado de baja');
+        }
+
+        $movimientos = $this->historialPorActivo[$activoId] ?? [];
+
+        if (empty($movimientos)) {
+            return [
+                'activo_id' => $activoId,
+                'mensaje' => 'Este activo todavía no tiene servicios registrados',
+                'movimientos' => [],
+            ];
+        }
+
+        // Ordenar de más reciente a más antiguo
+        usort(
+            $movimientos,
+            static fn(array $a, array $b): int => strcmp($b['fecha'], $a['fecha'])
+        );
+
+        if ($rol === 'tecnico') {
+            $movimientosFiltrados = [];
+            foreach ($movimientos as $mov) {
+                $movimientosFiltrados[] = [
+                    'tipo_servicio' => $mov['tipo_servicio'],
+                    'fecha' => $mov['fecha'],
+                    'estado' => $mov['estado'],
+                ];
+            }
+
+            return [
+                'activo_id' => $activoId,
+                'rol' => $rol,
+                'movimientos' => $movimientosFiltrados,
+            ];
+        }
+
+        if ($rol === 'admin_ventas') {
+            return [
+                'activo_id' => $activoId,
+                'rol' => $rol,
+                'movimientos' => $movimientos,
+            ];
+        }
+
+        throw new InvalidArgumentException("Rol no reconocido: {$rol}");
     }
 }
