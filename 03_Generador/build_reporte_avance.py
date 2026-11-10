@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Genera el Reporte de Avance — Sesión 1 de Implementación para el proyecto COTIZA-ELEV:
-1. Incrementos desarrollados
+1. Incrementos desarrollados (Incrementos 1 a 5 terminados y verificados al 100%)
 2. Comparación de lo planeado con lo real en tiempos
 3. Porcentaje de avance
+4. Componentes faltantes y planificación de incrementos extras (Incrementos 6, 7 y 8)
 Genera DOCX y PDF en 01_Entregables/.
 """
 import os
@@ -301,7 +302,7 @@ def build_report():
 
     p = doc.d.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run("COTIZA-ELEV: Implementación por Incrementos, Comparativa Planeado vs. Real y Métrica de Avance")
+    r = p.add_run("COTIZA-ELEV: Implementación por Incrementos, Planeado vs. Real, % de Avance y Plan de Incrementos Futuros")
     r.font.size = Pt(10.5)
     r.font.italic = True
     r.font.color.rgb = RGBColor(0x2E, 0x5C, 0x9A)
@@ -313,13 +314,13 @@ def build_report():
         ["Proyecto", "COTIZA-ELEV — Sistema Web de Gestión y Seguimiento de Cotizaciones para Elevadores (ELEVESE)."],
         ["Equipo de desarrollo", "• Orlando Villalobos Gutiérrez (Líder técnico, Arquitectura y Verificación)\n• Diego Emilio Alférez Vallejo (Desarrollo, Operación de IA y Documentación)"],
         ["Actividad evaluada", "Actividad de hoy – Sesión 1 de implementación: Trabajo con la implementación de INCREMENTOS."],
-        ["Criterios obligatorios", "1. Incrementos desarrollados.\n2. Comparación de lo planeado con lo real en tiempos.\n3. Porcentaje de avance."],
+        ["Criterios obligatorios", "1. Incrementos desarrollados.\n2. Comparación de lo planeado con lo real en tiempos.\n3. Porcentaje de avance.\n4. Identificación de componentes faltantes estructurados en nuevos incrementos."],
         ["Repositorio oficial", "https://github.com/OrlandoVillalobos-AI/COTIZA-ELEV (origin/main sincronizado con upstream DiegoAlferez-AI/COTIZA-ELEV)."],
-        ["Estado al corte (10-nov 13:00)", "5 incrementos integrados y verificados (v0.1.0 a v0.5.0) · 78/78 pruebas automatizadas aprobadas (100 %)."],
+        ["Estado al corte (10-nov 13:00)", "Núcleo de servicios al 100 % (v0.1.0 a v0.5.0) · 78/78 pruebas automatizadas aprobadas · Plan de Incrementos 6, 7 y 8 estructurado."],
     ])
 
     # SECCIÓN 1: INCREMENTOS DESARROLLADOS
-    doc.h1("1. Incrementos Desarrollados")
+    doc.h1("1. Incrementos Desarrollados (Núcleo de Servicios y Dominio)")
     doc.p("El desarrollo de COTIZA-ELEV se estructuró a partir de la especificación técnica aprobada v3.0 (43 Requerimientos Funcionales, 29 RNF, 24 Historias de Usuario y 81 Criterios de Aceptación). Siguiendo las directrices de la práctica de desarrollo incremental, se crearon ramas de trabajo independientes por cada incremento, se realizaron commits granulares por tarea ('feat(RF-XX): ...') y se integraron a la rama 'main' mediante fusiones sin avance rápido (--no-ff) tras superar rigurosas pruebas de regresión acumulada.")
 
     doc.table([
@@ -352,16 +353,15 @@ def build_report():
         ],
     ], [2.2, 1.8, 2.0, 3.2, 5.0, 1.8, 1.6], center_cols=[1, 5, 6])
 
-    # Detalle de código desarrollado
     doc.h2("Arquitectura de Servicios Implementada (PHP 8.4)")
-    doc.p("Los 5 incrementos se implementaron en la capa de servicios de dominio puro (`src/Services/`) con tipado estricto (`declare(strict_types=1)`), sin dependencias externas complejas, asegurando portabilidad y mantenibilidad:")
-    doc.bullet("src/Services/CalculoMotorService.php: Motor aritmético con fórmulas de partidas, equipos nuevos, pólizas anuales/bimestrales y correctivos.")
-    doc.bullet("src/Services/AuthRbacService.php: Control de sesiones, roles (Admin/Técnico), bloqueo por intentos fallidos y token de 30 min.")
-    doc.bullet("src/Services/ClienteService.php y ActivoService.php: Gestión de maestros con validaciones técnicas de paradas (2 a 60) y capacidades.")
-    doc.bullet("src/Services/CatalogoTarifaService.php: Precios unitarios vigentes e importador estructurado de archivos CSV.")
+    doc.p("Los 5 incrementos concluidos se implementaron en la capa de servicios de dominio puro (`src/Services/`) con tipado estricto (`declare(strict_types=1)`), asegurando que todas las reglas de negocio, fórmulas fiscales y restricciones de rol estén verificadas antes de acoplar la base de datos o el navegador:")
+    doc.bullet("src/Services/CalculoMotorService.php: Fórmulas de cálculo de partidas, equipos nuevos, pólizas anuales/bimestrales, correctivos y descuentos.")
+    doc.bullet("src/Services/AuthRbacService.php: Control de sesiones, roles (Admin/Técnico), bloqueo por intentos fallidos, inactividad y token de 30 min.")
+    doc.bullet("src/Services/ClienteService.php y ActivoService.php: Validación de maestros técnicos (paradas 2 a 60, capacidad en kg e historial por rol).")
+    doc.bullet("src/Services/CatalogoTarifaService.php: Administración de precios unitarios con fecha de vigencia e importador validado de CSV.")
     doc.bullet("src/Services/SolicitudService.php y CotizadorService.php: Flujo operativo de solicitudes de campo hacia cotizaciones comerciales.")
-    doc.bullet("src/Services/PropuestaSeguimientoService.php: Emisión de propuestas PDF con folios corporativos y control de aceptación.")
-    doc.bullet("src/Services/ReporteTableroService.php y AuditoriaErrorService.php: Métricas comerciales, bitácora inmutable y control de errores.")
+    doc.bullet("src/Services/PropuestaSeguimientoService.php: Emisión lógica de propuestas PDF con folios consecutivos COT-AAAA-NNNN y tracking de envíos.")
+    doc.bullet("src/Services/ReporteTableroService.php y AuditoriaErrorService.php: Indicadores de conversión, bitácora inmutable y control de excepciones.")
 
     # SECCIÓN 2: COMPARACIÓN DE LO PLANEADO CON LO REAL EN TIEMPOS
     doc.h1("2. Comparación de lo Planeado con lo Real en Tiempos")
@@ -425,81 +425,140 @@ def build_report():
             "La arquitectura desacoplada de los incrementos previos permitió inyectar fácilmente el token de 30 min (RF-03), el historial (RF-15) y la duplicación de cotizaciones (RF-34)."
         ],
         [
-            "TOTAL GLOBAL",
+            "SUBTOTAL SERVICIOS (Inc. 1 a 5)",
             "54.0 hrs",
             "56.0 hrs",
             "+2.0 hrs (+3.7 %)",
             "4 Semanas",
             "03 al 05 Nov 2026",
-            "Desviación neta de solo 2 horas (+3.7 %) sobre el estimado global. La disciplina de desarrollo guiado por pruebas (TDD) evitó horas de retrabajo en regresión."
+            "Desviación neta de solo 2 horas (+3.7 %) sobre el estimado global del núcleo de servicios. La disciplina de pruebas guiadas evitó horas de retrabajo en regresión."
         ]
     ], [2.4, 2.2, 2.2, 1.8, 2.0, 2.0, 5.0], center_cols=[1, 2, 3, 4, 5])
 
     doc.h2("Análisis del Desempeño Temporal")
-    doc.bullet("Alineación con el cronograma: La implementación se adelantó sustancialmente respecto al calendario de 8 semanas del proyecto gracias al uso de sub-tareas atómicas y verificación automática continua.")
+    doc.bullet("Alineación con el cronograma: La implementación del núcleo de dominio se completó en las fechas programadas mediante el uso de ramas de trabajo aisladas y sub-tareas atómicas.")
     doc.bullet("Eficiencia del equipo: Orlando Villalobos cubrió la arquitectura, reglas de negocio críticas y pruebas de regresión (29.5 hrs totales); Diego Alférez lideró la codificación de servicios, generación de reportes y documentación (26.5 hrs totales).")
-    doc.bullet("Gestión de riesgos: El riesgo de regresión (romper funciones previas al agregar nuevos incrementos) se mitigó ejecutando la suite automatizada ('php tests/run_tests.php') tras cada commit, logrando 0 defectos al cierre.")
+    doc.bullet("Control de calidad: El riesgo de regresión se mitigó ejecutando la suite automatizada ('php tests/run_tests.php') tras cada commit, logrando 0 defectos al cierre.")
 
     # SECCIÓN 3: PORCENTAJE DE AVANCE
     doc.h1("3. Porcentaje de Avance del Proyecto")
-    doc.p("El porcentaje de avance se evalúa a través de cuatro dimensiones cuantificables y auditables: Requerimientos Funcionales, Criterios de Aceptación, Cobertura de Pruebas de Regresión y Entregables Formales:")
+    doc.p("Para dar transparencia total al estado del proyecto en la Sesión 1, el porcentaje de avance se analiza desde dos perspectivas complementarias: el avance sobre los Requerimientos de Dominio (completados al 100 %) y el avance respecto a la totalidad del sistema productivo (incluyendo base de datos, controladores e interfaz web):")
 
     doc.table([
-        "Dimensión de Avance", "Métrica / Base Total", "Completado al Corte", "% de Avance Real", "Estado de Cumplimiento"
+        "Dimensión del Proyecto", "Alcance Total Planificado", "Estado al Corte (Sesión 1)", "% Avance Dominio", "% Avance Global Sistema"
     ], [
         [
-            "Requerimientos Funcionales (RF)",
-            "43 RF especificados (Sección 5 v3.0)",
-            "43 RF codificados en src/Services/",
+            "Capa de Lógica de Negocio y Dominio Puro (src/Services/)",
+            "43 RF especificados en v3.0",
+            "43 RF codificados y probados",
             "100.0 %",
-            "Completo (0 pendientes)"
-        ],
-        [
-            "Historias de Usuario (HU)",
-            "24 Historias de Usuario (Sección 7 v3.0)",
-            "24 HU atendidas y trazadas",
-            "100.0 %",
-            "Completo (16 Alta, 5 Media, 3 Baja)"
+            "100.0 % (Completado)"
         ],
         [
             "Criterios de Aceptación (CA)",
             "81 Criterios de Aceptación (Sección 8 v3.0)",
             "81 CA verificados por pruebas unitarias",
             "100.0 %",
-            "Completo (Normales, Límites y Errores)"
+            "100.0 % (Completado)"
         ],
         [
-            "Pruebas Automatizadas y Regresión",
-            "78 Pruebas automatizadas en tests/Unit/",
-            "78 Pruebas ejecutadas y aprobadas (0 fallas)",
+            "Pruebas Automatizadas de Regresión",
+            "78 Casos de prueba en tests/Unit/",
+            "78 Pruebas pasando (0 fallas)",
             "100.0 %",
-            "Regresión 100 % limpia (php tests/run_tests.php)"
+            "100.0 % (Completado)"
         ],
         [
-            "Ramas y Versiones en Git / GitHub",
-            "5 Tags (v0.1.0 a v0.5.0) y 4 Ramas",
-            "Publicadas en remoto origin/main",
-            "100.0 %",
-            "Trazabilidad completa con commits atómicos"
+            "Capa de Persistencia Relacional MySQL (app/Models/ + DDL)",
+            "9 Tablas normalizadas en 3FN con transacciones",
+            "Modelos de datos diseñados en doc persistencia; pendiente enlace físico PDO",
+            "N/A",
+            "20.0 % (Diseño listo, DDL pendiente)"
         ],
         [
-            "Documentación y Entregables",
-            "Plan de Incrementos, Matriz y Reportes",
-            "docs/plan_incrementos.md, PDF y DOCX listos",
-            "100.0 %",
-            "Entregables formales generados en 01_Entregables/"
+            "Capa de Enrutamiento y Controladores HTTP (app/Controllers/)",
+            "Front Controller, Router y 8 Controladores",
+            "Flujo de rutas mapeado; pendiente código HTTP y sesiones web",
+            "N/A",
+            "15.0 % (Arquitectura lista)"
         ],
         [
-            "AVANCE GLOBAL PONDERADO",
-            "Todas las dimensiones operativas",
-            "Fases A, B y C terminadas",
-            "100.0 %",
-            "SISTEMA LISTO Y VERIFICADO"
+            "Capa de Presentación e Interfaz de Usuario (app/Views/)",
+            "Vistas responsivas (Técnico móvil 360px y Ventas desktop) y PDF",
+            "Maquetado conceptual en especificación; pendiente plantillas Blade/HTML y motor PDF",
+            "N/A",
+            "10.0 % (Wireframes listos)"
+        ],
+        [
+            "TOTAL PONDERADO DEL PROYECTO",
+            "Sistema Web Integral de Producción",
+            "Lógica de Dominio 100 % operativa",
+            "100.0 % (Lógica)",
+            "55.0 % (Sistema Completo)"
         ]
-    ], [3.8, 4.4, 4.4, 2.2, 2.8], center_cols=[1, 2, 3, 4])
+    ], [3.8, 4.4, 4.4, 2.4, 2.6], center_cols=[3, 4])
 
-    doc.h2("Evidencia de Verificación Automatizada (Corte 10 de Noviembre)")
-    doc.p("La salida consolidada de la suite oficial de pruebas acumuladas certifica el estado del sistema:")
+    # SECCIÓN 4: COMPONENTES FALTANTES Y PLANIFICACIÓN DE INCREMENTOS FUTUROS
+    doc.h1("4. Componentes Faltantes y Planificación de Incrementos Futuros")
+    doc.p("Una vez que la Capa de Lógica de Negocio y Dominio Puro ha sido blindada y probada al 100 % mediante los Incrementos 1 a 5, la inspección exhaustiva de la 'Práctica de Diseño Modular y Arquitectura' y la 'Práctica de Persistencia de Datos' revela los tres componentes esenciales que restan para llevar COTIZA-ELEV a producción en el servidor Apache/cPanel de ELEVESE:")
+
+    doc.h2("Diagnóstico de Componentes Pendientes")
+    doc.bullet("1. Persistencia Física en Base de Datos MySQL: Sustituir los repositorios y arreglos en memoria de las pruebas unitarias por un esquema DDL real de 9 tablas ('usuarios', 'clientes', 'equipos_activos', 'catalogo_conceptos', 'solicitudes', 'cotizaciones', 'partidas_cotizacion', 'bitacora_auditoria', 'seguimiento_propuestas') con llaves foráneas 'ON DELETE RESTRICT' y transacciones ACID vía PDO.")
+    doc.bullet("2. Enrutamiento HTTP, Front Controller y Sesiones Web: Implementar el punto de entrada 'public/index.php' con reescritura Apache ('.htaccess'), el despachador de rutas ('app/Core/Router.php') y el middleware de seguridad ('AuthMiddleware.php') que audite y bloquee en el navegador el tiempo de inactividad de 20 minutos (aviso al min 19) y restrinja el acceso a rutas financieras al rol Técnico.")
+    doc.bullet("3. Interfaz Gráfica Responsiva y Generación Física PDF: Construir las plantillas visuales ('app/Views/') adaptadas para dispositivos móviles de campo (360px para el Técnico) y pantallas de oficina para Ventas, integrando la librería de renderizado PDF para materializar la propuesta económica formal con membrete y folios consecutivos anuales.")
+
+    doc.h2("Plan de Incrementos Extras (Incrementos 6, 7 y 8)")
+    doc.p("Para abordar estos componentes de manera ordenada y sin romper la trazabilidad del proyecto, se estructuran 3 nuevos incrementos de trabajo para las siguientes sesiones:")
+
+    doc.table([
+        "Incremento Futuro", "Versión / Tag", "Rama Git", "Módulos y Alcance", "Componentes y Archivos Clave a Desarrollar", "Tiempo Estimado", "Criterios de Éxito"
+    ], [
+        [
+            "Incremento 6:\nPersistencia Relacional MySQL",
+            "v0.6.0",
+            "incremento-6",
+            "Capa de Datos\n(M01 a M09)\nPersistencia real",
+            "• database/schema.sql (9 tablas DDL en 3FN, llaves foráneas, índices).\n• database/seeds.sql (datos iniciales de prueba y catálogos vigentes).\n• config/database.php y app/Core/Database.php (conexión Singleton PDO).\n• Modelos DAO transaccionales que implementan las interfaces de dominio.",
+            "12.0 hrs\n(Orlando: 6h\nDiego: 6h)",
+            "Migración DDL exitosa en MySQL 8.0, integridad referencial probada y transacciones ACID completadas sin corrupción de partidas."
+        ],
+        [
+            "Incremento 7:\nFront Controller y Middleware HTTP",
+            "v0.7.0",
+            "incremento-7",
+            "Capa de Control\n(M01 a M09)\nEnrutamiento web",
+            "• public/index.php y public/.htaccess (Front Controller único).\n• app/Core/Router.php y Request/Response handlers.\n• app/Core/AuthMiddleware.php y Session.php (control inactividad 20 min y RBAC).\n• Controladores HTTP: AuthController, ClienteController, ActivoController, CatalogoController, SolicitudController, CotizadorController, ReporteController.",
+            "14.0 hrs\n(Orlando: 7h\nDiego: 7h)",
+            "Peticiones HTTP despachadas a controladores; bloqueo y auditoría inmediata ante intentos de técnicos de acceder a URLs de precios."
+        ],
+        [
+            "Incremento 8:\nInterfaz Gráfica Responsiva y PDF",
+            "v0.8.0",
+            "incremento-8",
+            "Capa de Presentación\n(M01 a M09)\nUI/UX y Salidas",
+            "• public/assets/css/app.css y bootstrap.min.css (paleta Navy ELEVESE).\n• public/assets/js/ (cotizador dinámico, timer de sesión, validaciones).\n• app/Views/ (plantillas HTML responsivas: móvil 360px técnico y desktop ventas).\n• app/Modules/Propuestas/PdfGeneratorService.php (renderizado físico PDF con membrete y folio COT-AAAA-NNNN).",
+            "16.0 hrs\n(Orlando: 8h\nDiego: 8h)",
+            "Captura móvil fluida sin campos de precio para técnicos; emisión física de propuestas en PDF idénticas a la imagen corporativa."
+        ],
+        [
+            "TOTAL INCREMENTOS EXTRAS",
+            "v0.6.0 a v0.8.0",
+            "3 ramas",
+            "Capa de Datos, Control y Presentación",
+            "Infraestructura completa para despliegue productivo en cPanel / Apache",
+            "42.0 hrs",
+            "Sistema COTIZA-ELEV 100 % operativo de extremo a extremo en servidor real."
+        ]
+    ], [2.2, 1.6, 2.0, 2.6, 4.6, 2.0, 2.6], center_cols=[1, 2, 5])
+
+    doc.h2("Cronograma de Ejecución para las Próximas Sesiones")
+    doc.bullet("Sesión 2 de Implementación (Incremento 6 · v0.6.0): Montaje del esquema MySQL, carga de semillas iniciales y pruebas de persistencia transaccional con PDO.")
+    doc.bullet("Sesión 3 de Implementación (Incremento 7 · v0.7.0): Conexión de controladores HTTP, enrutamiento, validación de sesiones con expiración y bloqueo de URLs de precios al rol Técnico.")
+    doc.bullet("Sesión 4 de Implementación (Incremento 8 · v0.8.0): Maquetación responsiva de vistas, interacción con JavaScript, generación de archivos PDF físicos y despliegue final en servidor.")
+
+    # SECCIÓN 5: EVIDENCIA DE VERIFICACIÓN AUTOMATIZADA
+    doc.h1("5. Evidencia de Verificación Automatizada (Corte 10 de Noviembre)")
+    doc.p("La salida de la suite oficial de pruebas de regresión acumuladas ('php tests/run_tests.php') certifica el estado impecable del núcleo de servicios al cierre de la Sesión 1:")
 
     p_box = doc.d.add_paragraph()
     p_box.paragraph_format.left_indent = Cm(0.5)
@@ -529,6 +588,7 @@ def build_report():
     )
     r_box.font.name = "Courier New"
     r_box.font.size = Pt(7.5)
+    
     pPr = p_box._p.get_or_add_pPr()
     shd = OxmlElement("w:shd")
     shd.set(qn("w:val"), "clear")
@@ -537,10 +597,10 @@ def build_report():
     pPr.append(shd)
 
     # CONCLUSIONES Y PRÓXIMOS PASOS
-    doc.h1("4. Conclusiones y Próximos Pasos")
-    doc.bullet("La Sesión 1 de Implementación culmina con un cumplimiento del 100 % de los requerimientos funcionales planificados para el núcleo de servicios de COTIZA-ELEV.")
-    doc.bullet("El modelo incremental basado en ramas de Git y pruebas de regresión continuas demostró su efectividad: no se presentó ninguna rotura de código en las suites heredadas al integrar los incrementos 2, 3, 4 y 5.")
-    doc.bullet("Próximo paso operativo: Acoplar las interfaces web de usuario (vistas de formularios responsivas y exportación PDF física) sobre los servicios ya validados, continuando con la siguiente sesión del cronograma.")
+    doc.h1("6. Conclusiones y Próximos Pasos")
+    doc.bullet("La Sesión 1 de Implementación culmina con el 100 % de los requerimientos de lógica de negocio y reglas comerciales desarrollados y verificados bajo la arquitectura de servicios PHP 8.4.")
+    doc.bullet("La estrategia de pruebas de regresión acumuladas garantizó que el sistema no presente defectos en sus 78 casos de prueba a través de los Incrementos 1, 2, 3, 4 y 5.")
+    doc.bullet("Los componentes faltantes para la puesta en marcha integral del sistema han quedado identificados, presupuestados en 42 horas y formalmente divididos en los Incrementos 6, 7 y 8, proporcionando una hoja de ruta clara para las siguientes sesiones de trabajo.")
 
     # Guardar DOCX
     os.makedirs(OUT_DIR, exist_ok=True)
