@@ -1,0 +1,12 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Evitar acceso directo a archivos sensibles
+    RewriteRule ^(\.git|\.env|composer\.|storage) - [F,L]
+
+    # Redirigir todas las peticiones que no sean archivos físicos a index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^(.*)$ index.php [QSA,L]
+</IfModule>
